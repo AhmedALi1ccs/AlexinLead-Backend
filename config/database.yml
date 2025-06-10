@@ -1,0 +1,26 @@
+development:
+  adapter: postgresql
+  encoding: unicode
+  database: SalahDatastorageDev
+  pool: 5
+  username: postgres
+  password: 
+  host: localhost
+
+test:
+  adapter: postgresql
+  encoding: unicode
+  database: secure_data_storage_test
+  pool: 5
+  username: postgres
+  password: 
+  host: localhost
+
+production:
+  adapter: postgresql
+  encoding: unicode
+  database: SalahDatastorageProduction
+  pool: 5
+  username: postgres
+  password: 
+  host: localhost
