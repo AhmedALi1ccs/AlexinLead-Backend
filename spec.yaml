@@ -1,0 +1,59 @@
+name: your-rails-app
+services:
+- name: web
+  source_dir: /
+  github:
+    repo: your-username/your-repo
+    branch: main
+  run_command: bin/rails server -b 0.0.0.0 -p $PORT
+  environment_slug: ruby
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  envs:
+  - key: RAILS_ENV
+    value: production
+  - key: DB_HOST
+    value: aws-0-eu-north-1.pooler.supabase.com
+  - key: DB_USERNAME
+    value: postgres.jynfbdraigjscjlnswgf
+  - key: DB_PASSWORD
+    value: "@Thebestboy10"
+    type: SECRET
+  - key: DB_NAME
+    value: postgres
+  - key: DB_PORT
+    value: "6543"
+  - key: DB_POOL
+    value: "25"
+  - key: SECRET_KEY_BASE
+    value: ff4259881221b56315e6fc566615f4598768997b6b4a41359b7ae610222f9f8383915c44117262351ce77c482155a93fe7d734596fde38a6c108d91a7aaf3158
+    type: SECRET
+  - key: JWT_SECRET_KEY
+    value: 810700bf96cdc9b2b5bbe2542b8438017d7e4c86a67df1bc85e514e497781c9b
+    type: SECRET
+  - key: ENCRYPTION_PRIVATE_KEY
+    value: 8DMOAmnwxJv8ROZtWeKLJHCxvr6r05vJo7SMcBqH3LA=
+    type: SECRET
+  - key: ENCRYPTION_PUBLIC_KEY
+    value: SUc9Av+1/4yvAIrfbA7f/utEASnLvwwosYCJ23fDBiA=
+    type: SECRET
+  - key: FRONTEND_URL
+    value: https://your-frontend-domain.com
+  - key: RAILS_MAX_THREADS
+    value: "5"
+  - key: FORCE_SSL
+    value: "true"
+  - key: RATE_LIMIT_REQUESTS_PER_MINUTE
+    value: "100"
+  - key: RATE_LIMIT_LOGIN_ATTEMPTS
+    value: "5"
+  - key: SESSION_EXPIRE_HOURS
+    value: "24"
+  - key: MAX_FILE_SIZE_MB
+    value: "100"
+  - key: ALLOWED_FILE_TYPES
+    value: "pdf,doc,docx,txt,jpg,jpeg,png,gif,zip"
+  - key: LOG_LEVEL
+    value: info
+  - key: ENABLE_AUDIT_LOGGING
+    value: "true"
