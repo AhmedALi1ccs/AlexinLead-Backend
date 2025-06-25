@@ -17,28 +17,12 @@ ENV RAILS_ENV=production \
 #-----------------------------------------
 FROM base AS build
 
-# Install system dependencies for native gems
+# Install system dependencies for native gems, including FFI and libsodium headers
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
-      build-essential git libpq-dev libvips pkg-config libxml2-dev libxslt1-dev && \
+      build-essential git libpq-dev libvips pkg-config \
+      libxml2-dev libxslt1-dev libffi-dev libsodium-dev && \
     rm -rf /var/lib/apt/lists/*
-
-# Update RubyGems and install exact Bundler
-RUN gem update --system 3.3.22 && \
-    gem install bundler -v 2.6.2
-
-# Copy Gemfiles and install gems
-COPY Gemfile Gemfile.lock ./
-RUN bundle config set --local deployment 'true' && \
-    bundle config set --local without 'development test' && \
-    bundle install --jobs 4 --retry 3 && \
-    # Clean up git caches to shrink layer
-    rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git && \
-    bundle exec bootsnap precompile --gemfile
-
-# Copy app code and precompile bootsnap
-COPY . .
-RUN bundle exec bootsnap precompile app/ lib/
 
 #-----------------------------------------
 # Final stage: runtime image
