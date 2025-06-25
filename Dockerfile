@@ -1,23 +1,23 @@
 # syntax=docker/dockerfile:1
-# Use official Ruby image matching .ruby-version
 ARG RUBY_VERSION=3.1.2
 FROM registry.docker.com/library/ruby:${RUBY_VERSION}-slim AS base
 
-# Set the working directory for the Rails app
 WORKDIR /rails
 
-# Ensure production environment and Bundler settings
+# Production environment settings
 ENV RAILS_ENV=production \
     BUNDLE_DEPLOYMENT=1 \
     BUNDLE_PATH=/usr/local/bundle \
-    BUNDLE_WITHOUT="development test"
+    BUNDLE_WITHOUT="development test" \
+    RAILS_SERVE_STATIC_FILES=true \
+    RAILS_LOG_TO_STDOUT=true
 
 #-----------------------------------------
 # Builder stage: compile gems & assets
 #-----------------------------------------
 FROM base AS build
 
-# Install system dependencies for native gems, including FFI and libsodium headers
+# Install system dependencies for native gems
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
       build-essential git libpq-dev libvips pkg-config \
@@ -39,6 +39,12 @@ RUN bundle config set deployment 'true' && \
 # Copy the rest of the app
 COPY . .
 
+# Copy production environment file
+COPY .env.production .env
+
+# Copy Rails master key
+RUN echo "6bbbed9bb8d79f5b0c7281106fc48149" > config/master.key
+
 # Precompile bootsnap caches for faster boot
 RUN bundle exec bootsnap precompile app/ lib/
 
@@ -59,14 +65,38 @@ COPY --from=build /rails /rails
 
 # Create non-root user and set permissions
 RUN useradd rails --create-home --shell /bin/bash && \
-    chown -R rails:rails /rails
+    chown -R rails:rails /rails && \
+    mkdir -p /rails/tmp/pids && \
+    chown -R rails:rails /rails/tmp
+
 USER rails:rails
 
-# Update working directory inside final image
 WORKDIR /rails
 
-# Expose the Rails default port
+# Create entrypoint script
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+# Remove potential PID file\n\
+rm -f /rails/tmp/pids/server.pid\n\
+\n\
+# Wait for database\n\
+echo "Waiting for database..."\n\
+until pg_isready -h $DB_HOST -p $DB_PORT -U $DB_USERNAME 2>/dev/null; do\n\
+  echo "Database not ready, waiting..."\n\
+  sleep 2\n\
+done\n\
+echo "Database ready!"\n\
+\n\
+# Run database setup\n\
+echo "Setting up database..."\n\
+bin/rails db:prepare 2>/dev/null || echo "Database already set up"\n\
+\n\
+# Execute the main command\n\
+exec "$@"' > /rails/bin/docker-entrypoint && \
+    chmod +x /rails/bin/docker-entrypoint
+
 EXPOSE 3000
 
-# Start Rails server directly
+ENTRYPOINT ["/rails/bin/docker-entrypoint"]
 CMD ["bin/rails", "server", "-b", "0.0.0.0", "-p", "3000"]
