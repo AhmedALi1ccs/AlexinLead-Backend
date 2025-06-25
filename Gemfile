@@ -35,6 +35,9 @@ gem 'kaminari', '~> 1.2'  # Pagination
 
 # Monitoring and logging
 gem 'lograge', '~> 0.14'  # Better logging format
+# Gemfile
+gem 'dotenv-rails', require: 'dotenv/load'
+
 
 group :development, :test do
   gem 'debug', platforms: %i[mri mingw x64_mingw]
@@ -48,6 +51,7 @@ group :development do
   gem 'spring'
   gem 'annotate', '~> 3.2' # Model annotations
 end
+
 
 group :test do
   gem 'shoulda-matchers', '~> 5.3'

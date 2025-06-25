@@ -4,10 +4,12 @@ class User < ApplicationRecord
   # Associations
   has_many :user_sessions, dependent: :destroy
   has_many :data_records, dependent: :destroy
-  has_many :items, dependent: :destroy  # Add this line
+  has_many :items, dependent: :destroy
+  has_many :orders, dependent: :destroy  # ADD THIS LINE
   has_many :access_logs, dependent: :nullify
   has_many :data_permissions, dependent: :destroy
   has_many :shared_data_records, through: :data_permissions, source: :data_record
+  has_many :expenses, dependent: :destroy  # ADD THIS LINE TOO
   
   # Validations
   validates :email, presence: true, uniqueness: { case_sensitive: false }, 

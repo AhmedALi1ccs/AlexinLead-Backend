@@ -3,7 +3,7 @@ class AccessLog < ApplicationRecord
   belongs_to :data_record, optional: true
   
   validates :action, presence: true
-  validates :action, inclusion: { in: %w[create read update delete download login logout dispose] }
+  validates :action, inclusion: { in: %w[create read update delete download login logout dispose show index] }
   
   scope :recent, -> { order(created_at: :desc) }
   scope :by_user, ->(user) { where(user: user) }

@@ -81,11 +81,42 @@ class Api::V1::AuthenticationController < ApplicationController
       render json: { error: 'Not authenticated' }, status: :unauthorized
     end
   end
+
+  def change_password
+    unless current_user.authenticate(change_password_params[:current_password])
+      return render json: { error: 'Current password is incorrect' }, status: :unprocessable_entity
+    end
+
+    if change_password_params[:new_password] != change_password_params[:confirm_password]
+      return render json: { error: 'New password and confirmation do not match' }, status: :unprocessable_entity
+    end
+
+    if current_user.update(password: change_password_params[:new_password])
+      AccessLog.log_access(
+        user: current_user,
+        action: 'change_password',
+        ip_address: request.remote_ip,
+        user_agent: request.user_agent,
+        success: true
+      )
+
+      render json: { message: 'Password changed successfully' }, status: :ok
+    else
+      render json: { 
+        error: 'Failed to change password',
+        errors: current_user.errors.full_messages 
+      }, status: :unprocessable_entity
+    end
+  end
   
   private
   
   def login_params
     params.require(:user).permit(:email, :password)
+  end
+
+  def change_password_params
+    params.require(:password_change).permit(:current_password, :new_password, :confirm_password)
   end
   
   def set_session_cookie(token)

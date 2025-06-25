@@ -1,0 +1,199 @@
+class Order < ApplicationRecord
+  belongs_to :user
+  belongs_to :installing_assignee, class_name: 'Employee'
+  belongs_to :disassemble_assignee, class_name: 'Employee'
+  belongs_to :third_party_provider, class_name: 'Company', optional: true
+  
+  has_many :order_screen_requirements, dependent: :destroy
+  has_many :screen_inventories, through: :order_screen_requirements
+  has_many :order_equipment_assignments, dependent: :destroy
+  has_many :equipment, through: :order_equipment_assignments
+  has_many :expenses, dependent: :nullify
+  
+  validates :price_per_sqm, presence: true, numericality: { greater_than: 0 }
+  validates :laptops_needed, :video_processors_needed,
+            presence: true, numericality: { greater_than: 0 }
+  validates :payment_status, inclusion: { in: %w[received not_received partial] }
+  validates :order_status, inclusion: { in: %w[confirmed cancelled] }
+  validates :start_date, :end_date, presence: true
+  validates :order_id, presence: true, uniqueness: true
+  validate :end_date_after_start_date
+  validate :compatible_screen_types, if: -> { order_screen_requirements.any? }
+  validate :sufficient_equipment_available, on: :create
+  validate :has_screen_requirements, on: :create
+  
+  before_validation :generate_order_id, on: :create
+  before_save :calculate_total_amount
+  before_save :calculate_duration_days
+  after_create :reserve_inventory_and_equipment
+  after_update :handle_status_changes
+  
+  scope :active, -> { where(order_status: 'confirmed') }
+  scope :cancelled, -> { where(order_status: 'cancelled') }
+  scope :paid, -> { where(payment_status: 'received') }
+  scope :unpaid, -> { where(payment_status: 'not_received') }
+  scope :partial_paid, -> { where(payment_status: 'partial') }
+  scope :current_month, -> { where(created_at: Time.current.beginning_of_month..Time.current.end_of_month) }
+  scope :for_date, ->(date) { where('start_date <= ? AND end_date >= ?', date, date) }
+  
+  def total_sqm_required
+    order_screen_requirements.sum(:sqm_required)
+  end
+  
+  def total_dimensions_summary
+    requirements = order_screen_requirements.includes(:screen_inventory)
+    summary = requirements.map do |req|
+      if req.dimensions_rows && req.dimensions_columns
+        "#{req.screen_inventory.screen_type}: #{req.dimensions_rows}×#{req.dimensions_columns}"
+      else
+        "#{req.screen_inventory.screen_type}: #{req.sqm_required}m²"
+      end
+    end
+    summary.join(', ')
+  end
+  
+  def revenue
+    return 0 unless payment_status == 'received'
+    total_amount || 0
+  end
+  
+  def can_cancel?
+    order_status == 'confirmed'
+  end
+  
+  def cancel!
+    return false unless can_cancel?
+    
+    transaction do
+      # Release screen inventory
+      order_screen_requirements.each do |req|
+        if req.reserved_at
+          req.screen_inventory.release_sqm!(req.sqm_required)
+          req.update!(released_at: Time.current)
+        end
+      end
+      
+      # Return equipment
+      equipment.each { |eq| eq.return_from_order! if eq.status == 'assigned' }
+      
+      update!(order_status: 'cancelled')
+    end
+  end
+  
+  def days_until_start
+    return 0 if start_date <= Date.current
+    (start_date.to_date - Date.current).to_i
+  end
+  
+  def is_current?
+    Date.current.between?(start_date.to_date, end_date.to_date)
+  end
+  
+  def is_upcoming?
+    start_date.to_date > Date.current
+  end
+  
+  def is_past?
+    end_date.to_date < Date.current
+  end
+  
+  private
+  
+  def generate_order_id
+    return if order_id.present?
+    
+    date_str = created_at&.strftime('%d/%m/%Y') || Date.current.strftime('%d/%m/%Y')
+    base_id = date_str
+    
+    existing_orders = Order.where('order_id LIKE ?', "#{base_id}%").order(:order_id)
+    
+    if existing_orders.empty?
+      self.order_id = base_id
+    else
+      suffix_letter = 'A'
+      loop do
+        candidate_id = "#{base_id}_#{suffix_letter}"
+        unless existing_orders.exists?(order_id: candidate_id)
+          self.order_id = candidate_id
+          break
+        end
+        suffix_letter = suffix_letter.next
+      end
+    end
+  end
+  
+  def end_date_after_start_date
+    return unless start_date && end_date
+    errors.add(:end_date, 'must be after start date') if end_date <= start_date
+  end
+  
+  def compatible_screen_types
+    pixel_pitches = order_screen_requirements.joins(:screen_inventory)
+                                           .distinct
+                                           .pluck(:pixel_pitch)
+    
+    if pixel_pitches.length > 1
+      errors.add(:base, 'Cannot mix different pixel pitches in one order')
+    end
+  end
+  
+  def sufficient_equipment_available
+    available_laptops = Equipment.laptops.available.count
+    available_processors = Equipment.video_processors.available.count
+    
+    errors.add(:laptops_needed, "exceeds available laptops (#{available_laptops} available)") if laptops_needed > available_laptops
+    errors.add(:video_processors_needed, "exceeds available video processors (#{available_processors} available)") if video_processors_needed > available_processors
+  end
+  
+  def has_screen_requirements
+    errors.add(:base, 'Must have at least one screen requirement') if order_screen_requirements.empty?
+  end
+  
+  def calculate_total_amount
+    self.total_amount = total_sqm_required * price_per_sqm
+  end
+  
+  def calculate_duration_days
+    return unless start_date && end_date
+    self.duration_days = (end_date.to_date - start_date.to_date).to_i + 1
+  end
+  
+  def reserve_inventory_and_equipment
+    # Auto-reserve inventory when order is created
+    order_screen_requirements.each do |req|
+      req.screen_inventory.reserve_sqm!(req.sqm_required)
+      req.update!(reserved_at: Time.current)
+    end
+    
+    # Assign required equipment based on order requirements
+    assign_equipment_by_count
+  end
+  
+  def assign_equipment_by_count
+    # Assign laptops
+    laptops_to_assign = Equipment.laptops.available.limit(laptops_needed)
+    laptops_to_assign.each { |laptop| laptop.assign_to_order!(self) }
+    
+    # Assign video processors
+    processors_to_assign = Equipment.video_processors.available.limit(video_processors_needed)
+    processors_to_assign.each { |processor| processor.assign_to_order!(self) }
+    
+    # Log if we couldn't assign enough equipment
+    if laptops_to_assign.count < laptops_needed
+      Rails.logger.warn "Order #{id}: Could only assign #{laptops_to_assign.count} laptops out of #{laptops_needed} needed"
+    end
+    
+    if processors_to_assign.count < video_processors_needed
+      Rails.logger.warn "Order #{id}: Could only assign #{processors_to_assign.count} processors out of #{video_processors_needed} needed"
+    end
+  end
+  
+  def handle_status_changes
+    if saved_change_to_order_status?
+      case order_status
+      when 'cancelled'
+        third_party_provider&.update_order_stats!
+      end
+    end
+  end
+end
