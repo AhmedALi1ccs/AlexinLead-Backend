@@ -1,0 +1,31 @@
+# cloudbuild.yaml
+steps:
+  # 1) Use Google’s Ruby buildpack to build & detect Rails
+  - name: 'gcr.io/buildpacks/builder'
+    args:
+      [
+        'build',
+        '--builder=gcr.io/buildpacks/builder:v1',
+        '--env', 'RAILS_ENV=production',
+        '--env', 'SECRET_KEY_BASE=${_SECRET_KEY_BASE}',
+        '--env', 'DATABASE_URL=${_DATABASE_URL}',
+        '.',  # build current dir
+      ]
+
+  # 2) Deploy the resulting container to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      [
+        'run', 'deploy', 'secure-data-storage',     # your service name
+        '--platform=managed',
+        '--region=europe-north1',                   # pick your region
+        '--allow-unauthenticated',
+        '--image', '$(steps.build.outputs.image)',
+        '--set-env-vars', 'RAILS_ENV=production',
+        # pass through any other ENV vars you need here, e.g.:
+        '--set-env-vars', '_DATABASE_URL=${_DATABASE_URL},_REDIS_URL=${_REDIS_URL}'
+      ]
+
+images:
+  - 'gcr.io/$PROJECT_ID/secure-data-storage'
