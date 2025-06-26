@@ -140,9 +140,6 @@ GEM
     faker (3.5.1)
       i18n (>= 1.8.11, < 2)
     ffi (1.17.2)
-    ffi (1.17.2-arm-linux-gnu)
-    ffi (1.17.2-x86-linux-gnu)
-    ffi (1.17.2-x86_64-darwin)
     globalid (1.2.1)
       activesupport (>= 6.1)
     i18n (1.14.7)
@@ -204,12 +201,6 @@ GEM
     nio4r (2.7.4)
     nokogiri (1.15.7)
       mini_portile2 (~> 2.8.2)
-      racc (~> 1.4)
-    nokogiri (1.15.7-arm-linux)
-      racc (~> 1.4)
-    nokogiri (1.15.7-x86-linux)
-      racc (~> 1.4)
-    nokogiri (1.15.7-x86_64-darwin)
       racc (~> 1.4)
     pg (1.5.9)
     pp (0.6.2)
@@ -323,10 +314,7 @@ GEM
     zeitwerk (2.6.18)
 
 PLATFORMS
-  arm-linux
   ruby
-  x86-linux
-  x86_64-darwin
 
 DEPENDENCIES
   annotate (~> 3.2)
