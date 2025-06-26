@@ -29,30 +29,15 @@ COPY . .
 
 ########################### 2. RUNTIME STAGE ##########################
 FROM ruby:${RUBY_VERSION}-slim AS runtime
+# … install runtime libs and copy files …
 
-# Only what we need at runtime
-RUN apt-get update -qq && \
-    apt-get install -y --no-install-recommends \
-      libpq5 libvips libsodium23 postgresql-client && \
-    rm -rf /var/lib/apt/lists/*
+# --- add a simple entrypoint script ---
+RUN printf '#!/bin/sh\nset -e\nrm -f /app/tmp/pids/server.pid\nexec "$@"\n' \
+      > /usr/local/bin/docker-entrypoint && \
+    chmod +x /usr/local/bin/docker-entrypoint
 
-# Bring in gems and code
-COPY --from=build /gems /gems
-COPY --from=build /app  /app
+USER rails:rails          # (already created earlier)
 
-ENV BUNDLE_PATH=/gems \
-    RAILS_ENV=production RACK_ENV=production \
-    PATH="/app/bin:$PATH" \
-    XDG_CACHE_HOME=/app/tmp/cache
-
-WORKDIR /app
-
-# Unprivileged user
-RUN useradd rails --home /app --shell /usr/sbin/nologin && \
-    chown -R rails:rails /app
-USER rails:rails
-
-# Clear stale PID at container start
-ENTRYPOINT ["/bin/sh", "-c", "rm -f tmp/pids/server.pid && exec \"$@\""]
-EXPOSE 3000
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint"]
 CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0"]
+EXPOSE 3000
