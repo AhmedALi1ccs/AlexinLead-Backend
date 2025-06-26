@@ -1,7 +1,5 @@
 Rails.application.routes.draw do
-get '/health', to: proc { [200,
-                            { 'Content-Type' => 'application/json' },
-                            [{ status: 'ok' }.to_json] ] }
+match '/health', via: [:get, :head], to: proc { [200, {}, ['OK']] }
 
   namespace :api do
     namespace :v1 do
