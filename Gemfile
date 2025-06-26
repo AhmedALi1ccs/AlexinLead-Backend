@@ -9,7 +9,8 @@ ruby '3.1.2'
 gem 'rails', '~> 7.1.0'
 gem 'pg', '~> 1.1'
 gem 'puma', '~> 6.4'
-gem 'nokogiri', '~> 1.18.7'
+gem 'nokogiri', '= 1.18.7'
+
 
 # Security gems
 gem 'bcrypt', '~> 3.1.7'  # Password hashing
