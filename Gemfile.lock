@@ -358,6 +358,7 @@ DEPENDENCIES
   kaminari (~> 1.2)
   listen (~> 3.8)
   lograge (~> 0.14)
+  nokogiri (~> 1.18.7)
   pg (~> 1.1)
   puma (~> 6.4)
   rack-attack (~> 6.7)
