@@ -1,11 +1,6 @@
 Rails.application.routes.draw do
-match '/health', via: [:get, :head], to: proc { [200, {}, ['OK']] }
-
   namespace :api do
     namespace :v1 do
-      # Health check
-      get 'health', to: 'health#check'
-      get 'ping', to: 'health#ping'
       # Authentication routes
       post 'auth/login', to: 'authentication#login'
       post 'auth/logout', to: 'authentication#logout'
@@ -55,6 +50,9 @@ match '/health', via: [:get, :head], to: proc { [200, {}, ['OK']] }
       
       # Audit logs
       resources :access_logs, only: [:index, :show]
+      
+      # Health check
+      get 'health', to: 'health#check'
 
       # LED Screen Rental Routes
       # Orders
