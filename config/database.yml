@@ -3,7 +3,6 @@ default: &default
   encoding: unicode
   pool: <%= ENV.fetch("DB_POOL", 5) %>
   timeout: 5000
-  # Remove sslmode from default - only add in production
 
 development:
   <<: *default
@@ -29,6 +28,5 @@ production:
   username: <%= ENV.fetch('DB_USERNAME') %>
   password: <%= ENV.fetch('DB_PASSWORD') %>
   sslmode: require
-  # Add connection pooling for production
   pool: <%= ENV.fetch("DB_POOL", 10) %>
   checkout_timeout: 5
