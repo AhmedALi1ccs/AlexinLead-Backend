@@ -27,10 +27,10 @@ module SecureDataStorage
     end
 
     # Rate limiting
-    config.middleware.use Rack::Attack
+    # config.middleware.use Rack::Attack
 
     # Security headers
-    config.middleware.use SecureHeaders::Middleware
+    # config.middleware.use SecureHeaders::Middleware
 
     # Timezone
     config.time_zone = 'UTC'
