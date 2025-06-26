@@ -1,3 +1,4 @@
+# config/application.rb
 require_relative "boot"
 require "rails/all"
 
@@ -9,15 +10,15 @@ module SecureDataStorage
     config.api_only = true
 
     # Security configurations
-    config.force_ssl = false  # Disabled for development
+    config.force_ssl = Rails.env.production?
     config.ssl_options = {
       redirect: { exclude: ->(request) { request.path =~ /health/ } }
     }
 
-    # CORS configuration - FIXED
+    # CORS configuration
     config.middleware.insert_before 0, Rack::Cors do
       allow do
-        origins 'http://localhost:5173', 'http://localhost:3000'  # Allow both Vite and standard React ports
+        origins ENV.fetch('FRONTEND_URL', 'http://localhost:3000')
         resource '*',
           headers: :any,
           methods: [:get, :post, :put, :patch, :delete, :options, :head],
@@ -27,10 +28,10 @@ module SecureDataStorage
     end
 
     # Rate limiting
-    # config.middleware.use Rack::Attack
+    config.middleware.use Rack::Attack
 
     # Security headers
-    # config.middleware.use SecureHeaders::Middleware
+    config.middleware.use SecureHeaders::Middleware
 
     # Timezone
     config.time_zone = 'UTC'
