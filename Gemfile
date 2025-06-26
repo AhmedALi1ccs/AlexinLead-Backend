@@ -1,12 +1,7 @@
-# Gemfile for Secure Data Storage System
-
 source 'https://rubygems.org'
 git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 
 ruby '3.1.2'
-
-# Standard library gems required for Ruby 3.1+
-gem 'logger'
 
 # Core Rails - Match what's in Gemfile.lock
 gem 'rails', '~> 7.0.8'

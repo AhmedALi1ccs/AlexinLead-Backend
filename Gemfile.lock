@@ -317,7 +317,6 @@ DEPENDENCIES
   jbuilder
   jwt (~> 2.7)
   listen (~> 3.8)
-  logger
   nokogiri (~> 1.13.10)
   pg (~> 1.1)
   puma (~> 5.6)
