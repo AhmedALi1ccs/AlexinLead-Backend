@@ -3,18 +3,30 @@ default: &default
   encoding: unicode
   pool: <%= ENV.fetch("DB_POOL", 5) %>
   timeout: 5000
-  url: <%= ENV["DATABASE_URL"] %>
 
 development:
   <<: *default
+  host: <%= ENV.fetch("DB_HOST", "localhost") %>
+  port: <%= ENV.fetch("DB_PORT", 5432) %>
   database: <%= ENV.fetch("DB_NAME", "secure_data_storage_development") %>
+  username: <%= ENV.fetch("DB_USERNAME", "postgres") %>
+  password: <%= ENV.fetch("DB_PASSWORD", "") %>
 
 test:
   <<: *default
+  host: <%= ENV.fetch("DB_HOST", "localhost") %>
+  port: <%= ENV.fetch("DB_PORT", 5432) %>
   database: <%= ENV.fetch("DB_NAME_TEST", "secure_data_storage_test") %>
+  username: <%= ENV.fetch("DB_USERNAME", "postgres") %>
+  password: <%= ENV.fetch("DB_PASSWORD", "") %>
 
 production:
   <<: *default
+  host: <%= ENV.fetch("DB_HOST") %>
+  port: <%= ENV.fetch("DB_PORT", 5432) %>
+  database: <%= ENV.fetch("DB_NAME") %>
+  username: <%= ENV.fetch("DB_USERNAME") %>
+  password: <%= ENV.fetch("DB_PASSWORD") %>
   sslmode: require
   pool: <%= ENV.fetch("DB_POOL", 10) %>
   checkout_timeout: 5
