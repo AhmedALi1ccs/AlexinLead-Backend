@@ -2,14 +2,24 @@ FROM ruby:3.1.2
 
 WORKDIR /app
 
-# Install dependencies
-RUN apt-get update -qq && apt-get install -y postgresql-client
+# Install ALL dependencies for native gems
+RUN apt-get update -qq && \
+    apt-get install -y \
+    postgresql-client \
+    build-essential \
+    libpq-dev \
+    libxml2-dev \
+    libxslt1-dev \
+    libffi-dev \
+    zlib1g-dev
 
 # Copy Gemfile
 COPY Gemfile* ./
 
-# Install gems
-RUN bundle install
+# Force clean bundle install
+RUN rm -rf /usr/local/bundle/gems/* && \
+    bundle config set --local force_ruby_platform true && \
+    bundle install
 
 # Copy app
 COPY . .
