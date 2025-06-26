@@ -27,11 +27,9 @@ module SecureDataStorage
       end
     end
 
-    # Rate limiting
-    config.middleware.use Rack::Attack
-
-    # Security headers
-    config.middleware.use SecureHeaders::Middleware
+    # Remove these lines - gems not installed:
+    # config.middleware.use Rack::Attack
+    # config.middleware.use SecureHeaders::Middleware
 
     # Timezone
     config.time_zone = 'UTC'
