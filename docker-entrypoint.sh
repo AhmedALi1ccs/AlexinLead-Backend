@@ -16,19 +16,19 @@ if [ "${1}" == "./bin/rails" ] && [ "${2}" == "server" ]; then
   echo "Setting up database..."
   
   # Check if database exists, if not create it
-  if ! rails db:version > /dev/null 2>&1; then
+  if ! bundle exec rails db:version > /dev/null 2>&1; then
     echo "Database doesn't exist. Creating..."
-    rails db:create
+    bundle exec rails db:create
   fi
   
   # Run migrations
   echo "Running database migrations..."
-  rails db:migrate
+  bundle exec rails db:migrate
   
   # Seed database if needed (only in non-production or if SEED_DB is set)
   if [ "${RAILS_ENV}" != "production" ] || [ "${SEED_DB}" = "true" ]; then
     echo "Seeding database..."
-    rails db:seed
+    bundle exec rails db:seed
   fi
   
   echo "Database setup complete!"
