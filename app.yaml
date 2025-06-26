@@ -1,13 +1,6 @@
 alerts:
 - rule: DEPLOYMENT_FAILED
 - rule: DOMAIN_FAILED
-ingress:
-  rules:
-  - component:
-      name: alexinlead-backend
-    match:
-      path:
-        prefix: /
 name: orca-app
 region: fra1
 
