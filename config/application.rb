@@ -20,7 +20,7 @@ module SecureDataStorage
     # CORS configuration
     config.middleware.insert_before 0, Rack::Cors do
       allow do
-        origins ENV.fetch('FRONTEND_URL', 'http://localhost:5173')
+        origins ENV.fetch('FRONTEND_URL', 'http://localhost:5173', 'https://lobster-app-dolxs.ondigitalocean.app')
         resource '*',
           headers: :any,
           methods: [:get, :post, :put, :patch, :delete, :options, :head],
