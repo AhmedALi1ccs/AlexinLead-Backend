@@ -1,0 +1,77 @@
+alerts:
+- rule: DEPLOYMENT_FAILED
+- rule: DOMAIN_FAILED
+ingress:
+  rules:
+  - component:
+      name: alexinlead-backend
+    match:
+      path:
+        prefix: /
+name: orca-app
+region: fra
+services:
+- dockerfile_path: Dockerfile
+  envs:
+  - key: DB_HOST
+    scope: RUN_AND_BUILD_TIME
+    value: aws-0-eu-north-1.pooler.supabase.com
+  - key: DB_PORT
+    scope: RUN_AND_BUILD_TIME
+    value: "6543"
+  - key: DB_NAME
+    scope: RUN_AND_BUILD_TIME
+    value: postgres
+  - key: DB_USERNAME
+    scope: RUN_AND_BUILD_TIME
+    value: postgres.jynfbdraigjscjlnswgf
+  - key: DB_PASSWORD
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: EV[1:DzD3mwfeU4dcdSPKsLFSiCxIj+KtD+3/:8Yo5+niGb2WbT1yOeHBDAvOTj+uk5vCgRzRIo8k=]
+  - key: DB_POOL
+    scope: RUN_AND_BUILD_TIME
+    value: "25"
+  - key: RAILS_ENV
+    scope: RUN_AND_BUILD_TIME
+    value: production
+  - key: RAILS_MAX_THREADS
+    scope: RUN_AND_BUILD_TIME
+    value: "5"
+  - key: WEB_CONCURRENCY
+    scope: RUN_AND_BUILD_TIME
+    value: "1"
+  - key: RAILS_MASTER_KEY
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: EV[1:ncm/iErgxvHKVlvaW5AaTeFKJv9qaahQ:RMIJRbNrdtX92Ka8wOruV4EZYzlZv+q+LKy7+qw84AXzP0W9spOaCKNJZ7T79js/]
+  - key: SECRET_KEY_BASE
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: EV[1:4Duut1tdEHkm5ir3BKOanI0havRCWc3Y:hZe3yHGH+b79Nk31uPv7sRP1p+Utiy2mZxU5c+s+vNFgeFyDy7yMpTXhnkhuwCc0/iGzFs9EzNrWdjIlGXEqJq2sBviF74klJd2jSsfk5G4iHeibNzYjWyshKS5oeleDvezP5++bjKeCwl32kyiCZmhHZwmMBOiRs5QpkXX6Z3oOxwkUu8C6qrWOm3oftuMj]
+  - key: JWT_SECRET_KEY
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: EV[1:MHyS22uF4qkooxNi35Cc3h1s0zuUHT0J:/k64t/a/WUKFcrjoH1x8fGjHr5dQGIokN293jcdqGouBr05WKSPIijUUK0PhFrD9JcBfy64DT8B0c0laHiH0zQGXRTBFOREWBg5hkHL+EgE=]
+  - key: RAILS_SERVE_STATIC_FILES
+    scope: RUN_AND_BUILD_TIME
+    value: "true"
+  - key: RAILS_LOG_TO_STDOUT
+    scope: RUN_AND_BUILD_TIME
+    value: "true"
+  github:
+    branch: main
+    deploy_on_push: true
+    repo: AhmedALi1ccs/AlexinLead-Backend
+  health_check:
+    failure_threshold: 3
+    http_path: /health
+    initial_delay_seconds: 60
+    period_seconds: 10
+    success_threshold: 1
+    timeout_seconds: 5
+  http_port: 3000
+  instance_count: 1
+  instance_size_slug: apps-s-1vcpu-2gb
+  name: alexinlead-backend
+  source_dir: ./
