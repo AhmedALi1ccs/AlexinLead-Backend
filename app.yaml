@@ -10,6 +10,7 @@ ingress:
         prefix: /
 name: orca-app
 region: fra1
+
 services:
 - dockerfile_path: Dockerfile
   envs:
