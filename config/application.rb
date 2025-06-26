@@ -1,5 +1,7 @@
-# config/application.rb
 require_relative "boot"
+
+require 'logger' unless defined?(Logger)  # ✅ Add this
+
 require "rails/all"
 
 Bundler.require(*Rails.groups)
