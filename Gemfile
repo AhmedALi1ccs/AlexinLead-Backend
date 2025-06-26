@@ -10,7 +10,7 @@ gem 'rails', '~> 7.0.8'
 gem 'pg', '~> 1.1'
 gem 'puma', '~> 5.6'
 gem 'nokogiri', '~> 1.13.10'
-
+gem 'ffi', '~> 1.16.3'
 # Security gems
 gem 'bcrypt', '~> 3.1.7'  # Password hashing
 gem 'jwt', '~> 2.7'       # JSON Web Tokens

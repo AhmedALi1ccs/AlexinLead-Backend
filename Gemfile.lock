@@ -129,14 +129,7 @@ GEM
       i18n (>= 1.8.11, < 2)
     fast_jsonapi (1.5)
       activesupport (>= 4.2)
-    ffi (1.17.2-aarch64-linux-gnu)
-    ffi (1.17.2-aarch64-linux-musl)
-    ffi (1.17.2-arm64-darwin)
-    ffi (1.17.2-x86-linux-gnu)
-    ffi (1.17.2-x86-linux-musl)
-    ffi (1.17.2-x86_64-darwin)
-    ffi (1.17.2-x86_64-linux-gnu)
-    ffi (1.17.2-x86_64-linux-musl)
+    ffi (1.16.3)
     globalid (1.2.1)
       activesupport (>= 6.1)
     i18n (1.14.7)
@@ -324,6 +317,7 @@ DEPENDENCIES
   factory_bot_rails (~> 6.2)
   faker (~> 2.22)
   fast_jsonapi
+  ffi (~> 1.16.3)
   image_processing (~> 1.2)
   importmap-rails
   jbuilder
