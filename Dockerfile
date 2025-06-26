@@ -5,7 +5,6 @@ FROM registry.docker.com/library/ruby:$RUBY_VERSION-slim as base
 
 WORKDIR /rails
 
-# Set production environment
 ENV RAILS_ENV="production" \
     BUNDLE_DEPLOYMENT="1" \
     BUNDLE_PATH="/usr/local/bundle" \
@@ -16,25 +15,50 @@ ENV RAILS_ENV="production" \
 # Build stage
 FROM base as build
 
-# Install packages needed to build gems
+# Install ALL packages needed for Rails native extensions
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
     build-essential \
     git \
+    # PostgreSQL
     libpq-dev \
+    # Image processing
     libvips \
+    # Package config
     pkg-config \
+    # FFI dependencies
+    libffi-dev \
+    libsodium-dev \
+    libssl-dev \
+    # Nokogiri dependencies
+    libxml2-dev \
+    libxslt1-dev \
+    zlib1g-dev \
+    # Additional build tools
+    autoconf \
+    automake \
+    libtool \
+    make \
+    gcc \
+    g++ \
+    # Other common dependencies
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Update RubyGems and Bundler to latest versions
+# Update RubyGems and Bundler
 RUN gem update --system 3.4.22 && \
     gem install bundler:2.4.22
 
-# Copy Gemfile and install gems
+# Copy Gemfile files
 COPY Gemfile Gemfile.lock ./
-RUN bundle config set --local deployment 'true' && \
+
+# Install gems with native extension compilation
+RUN bundle config set --local deployment 'false' && \
     bundle config set --local without 'development test' && \
-    bundle install && \
+    bundle config set --local jobs 4 && \
+    bundle config set --local retry 5 && \
+    bundle config set --local force 'true' && \
+    bundle install --verbose && \
     rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git
 
 # Copy application code
@@ -46,26 +70,36 @@ RUN bundle exec bootsnap precompile app/ lib/
 # Final stage
 FROM base
 
-# Install runtime dependencies
+# Install runtime libraries for ALL native extensions
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
     curl \
+    # Image processing
     libvips \
+    # PostgreSQL client
     postgresql-client \
+    # FFI runtime libraries
+    libffi8 \
+    libsodium23 \
+    libssl3 \
+    # Nokogiri runtime libraries
+    libxml2 \
+    libxslt1.1 \
+    zlib1g \
     && rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
-# Copy built application
+# Copy everything from build stage
 COPY --from=build /usr/local/bundle /usr/local/bundle
 COPY --from=build /rails /rails
 
-# Create rails user
+# Create user and set permissions
 RUN useradd rails --create-home --shell /bin/bash && \
     mkdir -p /rails/log /rails/tmp /rails/storage && \
     chown -R rails:rails /rails
 
 USER rails:rails
 
-# Create entrypoint
+# Set up entrypoint
 COPY --chown=rails:rails docker-entrypoint.sh /rails/bin/
 RUN chmod +x /rails/bin/docker-entrypoint.sh
 
