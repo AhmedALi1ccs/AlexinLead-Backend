@@ -1,110 +1,60 @@
+# Gemfile for Secure Data Storage System
+
 source 'https://rubygems.org'
 git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 
 ruby '3.1.2'
-# Gemfile
-gem 'dotenv-rails', groups: %i[development test]
-gem 'ffi', '< 1.17'
 
-# Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
-gem 'ancestry'
-gem 'bcrypt'
-gem 'fast_jsonapi'
-gem 'globalize'
-gem 'globalize-accessors'
-gem 'jwt'
-gem 'pundit'
-gem 'rack-cors'
-gem 'rails', '~> 7.0.3'
-gem 'rubocop', require: false
-gem 'active_model_serializers', '~> 0.10.0'
-
-
-gem 'fcm'
-
-gem 'activeresource', require: 'active_resource'
-gem 'array_enum'
-gem 'image_processing'
-gem 'sidekiq', '~> 5.2.2'
-
-gem 'google-api-client', '~> 0.34'
-gem 'will_paginate'
-
-gem 'simple_command'
-gem 'swagger-blocks'
-
-# The original asset pipeline for Rails [https://github.com/rails/sprockets-rails]
-gem 'sprockets-rails'
-
-# Use postgresql as the database for Active Record
+# Core Rails
+gem 'rails', '~> 7.1.0'
 gem 'pg', '~> 1.1'
+gem 'puma', '~> 6.4'
+gem 'nokogiri', '< 1.16' # Known issues with >=1.16
 
-# Use the Puma web server [https://github.com/puma/puma]
-gem 'puma', '~> 5.0'
+# Security
+gem 'bcrypt', '~> 3.1.7'
+gem 'jwt', '~> 2.7'
+gem 'rack-cors', '~> 2.0'
+gem 'rack-attack', '~> 6.7'
+gem 'secure_headers', '~> 6.5'
 
-# Use JavaScript with ESM import maps [https://github.com/rails/importmap-rails]
-gem 'importmap-rails'
+# File handling + Encryption
+gem 'shrine', '~> 3.5'
+gem 'aws-sdk-s3', '~> 1.0'
+gem 'rbnacl', '~> 7.1'
 
-# Hotwire's SPA-like page accelerator [https://turbo.hotwired.dev]
-gem 'turbo-rails'
+# Performance / Caching
+gem 'redis', '~> 5.0'
+gem 'bootsnap', '>= 1.16.0', require: false
 
-# Hotwire's modest JavaScript framework [https://stimulus.hotwired.dev]
-gem 'stimulus-rails'
+# Background Jobs
+gem 'sidekiq', '~> 7.1'
 
-# Build JSON APIs with ease [https://github.com/rails/jbuilder]
-gem 'jbuilder'
+# API / Serialization
+gem 'jsonapi-serializer', '~> 2.2'
+gem 'kaminari', '~> 1.2'
 
-# Use Redis adapter to run Action Cable in production
-gem 'redis', '~> 4.0'
+# Monitoring / Logging
+gem 'lograge', '~> 0.14'
 
-# Use Kredis to get higher-level data types in Redis [https://github.com/rails/kredis]
-# gem "kredis"
+# Environment Variables
+gem 'dotenv-rails', require: 'dotenv/load'
 
-# Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
-# gem "bcrypt", "~> 3.1.7"
-
-# Windows does not include zoneinfo files, so bundle the tzinfo-data gem
-gem 'tzinfo-data', platforms: %i[mingw mswin x64_mingw jruby]
-
-# Reduces boot times through caching; required in config/boot.rb
-gem 'bootsnap', require: false
-
-# Use Sass to process CSS
-# gem "sassc-rails"
-
-# Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
-# gem "image_processing", "~> 1.2"
-
+# Development and Test
 group :development, :test do
-  # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem 'debug', platforms: %i[mri mingw x64_mingw]
+  gem 'rspec-rails', '~> 6.0'
+  gem 'factory_bot_rails', '~> 6.2'
+  gem 'faker', '~> 3.2'
 end
 
 group :development do
-  # Use console on exceptions pages [https://github.com/rails/web-console]
-  gem 'web-console'
-
-  # Add speed badges [https://github.com/MiniProfiler/rack-mini-profiler]
-  # gem "rack-mini-profiler"
-
-  # Speed up commands on slow machines / big apps [https://github.com/rails/spring]
-  # gem "spring"
+  gem 'listen', '~> 3.8'
+  gem 'spring'
+  gem 'annotate', '~> 3.2'
 end
 
 group :test do
-  # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
-  gem 'capybara'
-  gem 'selenium-webdriver'
-  gem 'webdrivers'
+  gem 'shoulda-matchers', '~> 5.3'
+  gem 'database_cleaner-active_record', '~> 2.1'
 end
-
-gem 'activerecord-session_store'
-gem 'faker', '~> 2.21'
-
-gem 'chartkick'
-
-gem 'aws-sdk-s3', '~> 1.48', require: false
-gem 'caracal'      # For Word generation (or use DocxReplace if modifying)
-gem 'docx_replace' # For modifying .docx templates
-gem 'pandoc-ruby'  # For converting .docx to PDF (requires Pandoc installed)
-gem 'rubyzip'
