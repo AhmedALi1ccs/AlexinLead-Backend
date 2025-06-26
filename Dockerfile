@@ -1,10 +1,8 @@
 # syntax = docker/dockerfile:1
 
-# Make sure RUBY_VERSION matches the Ruby version in .ruby-version and Gemfile
 ARG RUBY_VERSION=3.1.2
 FROM registry.docker.com/library/ruby:$RUBY_VERSION-slim as base
 
-# Rails app lives here
 WORKDIR /rails
 
 # Set production environment
@@ -15,37 +13,40 @@ ENV RAILS_ENV="production" \
     RAILS_SERVE_STATIC_FILES="1" \
     RAILS_LOG_TO_STDOUT="1"
 
-# Throw-away build stage to reduce size of final image
+# Build stage
 FROM base as build
 
-# Install packages needed to build gems and run the app
+# Install packages needed to build gems
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
     build-essential \
-    curl \
     git \
     libpq-dev \
     libvips \
     pkg-config \
-    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Install application gems
+# Update RubyGems and Bundler to latest versions
+RUN gem update --system 3.4.22 && \
+    gem install bundler:2.4.22
+
+# Copy Gemfile and install gems
 COPY Gemfile Gemfile.lock ./
-RUN bundle install && \
-    rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git && \
-    bundle exec bootsnap precompile --gemfile
+RUN bundle config set --local deployment 'true' && \
+    bundle config set --local without 'development test' && \
+    bundle install && \
+    rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git
 
 # Copy application code
 COPY . .
 
-# Precompile bootsnap code for faster boot times
+# Precompile bootsnap
 RUN bundle exec bootsnap precompile app/ lib/
 
-# Final stage for app image
+# Final stage
 FROM base
 
-# Install packages needed for deployment
+# Install runtime dependencies
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
     curl \
@@ -53,26 +54,22 @@ RUN apt-get update -qq && \
     postgresql-client \
     && rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
-# Copy built artifacts: gems, application
+# Copy built application
 COPY --from=build /usr/local/bundle /usr/local/bundle
 COPY --from=build /rails /rails
 
-# Run and own only the runtime files as a non-root user for security
+# Create rails user
 RUN useradd rails --create-home --shell /bin/bash && \
-    mkdir -p /rails/storage /rails/log /rails/tmp && \
+    mkdir -p /rails/log /rails/tmp /rails/storage && \
     chown -R rails:rails /rails
+
 USER rails:rails
 
-# Create directories for file uploads and logs
-RUN mkdir -p /rails/storage/uploads /rails/log /rails/tmp/pids
+# Create entrypoint
+COPY --chown=rails:rails docker-entrypoint.sh /rails/bin/
+RUN chmod +x /rails/bin/docker-entrypoint.sh
 
-# Add health check endpoint
-COPY --chown=rails:rails docker-entrypoint.sh /rails/bin/docker-entrypoint
-RUN chmod +x /rails/bin/docker-entrypoint
+ENTRYPOINT ["/rails/bin/docker-entrypoint.sh"]
 
-# Entrypoint prepares the database and starts the server
-ENTRYPOINT ["/rails/bin/docker-entrypoint"]
-
-# Start the server by default
 EXPOSE 3000
 CMD ["./bin/rails", "server", "-b", "0.0.0.0"]
