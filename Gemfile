@@ -8,6 +8,7 @@ gem 'rails', '~> 7.0.8'
 gem 'pg', '~> 1.1'
 gem 'puma', '~> 5.6'
 gem 'nokogiri', '~> 1.13.10'
+gem 'rack-attack'
 
 # Fix ffi version for compatibility
 gem 'ffi', '~> 1.16.3'
