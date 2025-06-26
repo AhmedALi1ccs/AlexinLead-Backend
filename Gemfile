@@ -24,4 +24,4 @@ end
 
 group :development do
   gem 'listen', '~> 3.8'
-end
+endgem 'rack-attack', '~> 7.0'
