@@ -9,6 +9,7 @@ gem 'pg', '~> 1.1'
 gem 'puma', '~> 5.6'
 gem 'nokogiri', '~> 1.13.10'
 gem 'rack-attack'
+gem 'secure_headers'
 
 # Fix ffi version for compatibility
 gem 'ffi', '~> 1.16.3'

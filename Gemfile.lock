@@ -270,6 +270,7 @@ GEM
     ruby-vips (2.2.4)
       ffi (~> 1.12)
       logger
+    secure_headers (7.1.0)
     shoulda-matchers (5.3.0)
       activesupport (>= 5.2.0)
     sidekiq (5.2.10)
@@ -327,6 +328,7 @@ DEPENDENCIES
   rails (~> 7.0.8)
   redis (~> 4.5)
   rspec-rails (~> 6.0)
+  secure_headers
   shoulda-matchers (~> 5.3)
   sidekiq (~> 5.2.10)
   spring
