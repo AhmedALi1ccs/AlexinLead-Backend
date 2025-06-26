@@ -294,16 +294,10 @@ GEM
 
 PLATFORMS
   aarch64-linux
-  aarch64-linux-gnu
-  aarch64-linux-musl
   arm64-darwin
   x86-linux
-  x86-linux-gnu
-  x86-linux-musl
   x86_64-darwin
   x86_64-linux
-  x86_64-linux-gnu
-  x86_64-linux-musl
 
 DEPENDENCIES
   active_model_serializers (~> 0.10.0)
@@ -323,6 +317,7 @@ DEPENDENCIES
   jbuilder
   jwt (~> 2.7)
   listen (~> 3.8)
+  logger
   nokogiri (~> 1.13.10)
   pg (~> 1.1)
   puma (~> 5.6)
