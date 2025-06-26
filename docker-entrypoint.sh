@@ -15,10 +15,15 @@ echo "Database is ready!"
 if [ "${1}" == "./bin/rails" ] && [ "${2}" == "server" ]; then
   echo "Setting up database..."
   
-  # Check if database exists, if not create it
-  if ! bundle exec rails db:version > /dev/null 2>&1; then
-    echo "Database doesn't exist. Creating..."
-    bundle exec rails db:create
+  # Skip database creation for Supabase (database already exists)
+  # Just check if we can connect
+  echo "Checking database connection..."
+  if bundle exec rails db:version > /dev/null 2>&1; then
+    echo "Database connection successful!"
+  else
+    echo "Setting up database schema..."
+    # Try to create database, but don't fail if it already exists
+    bundle exec rails db:create 2>/dev/null || echo "Database already exists (this is normal for Supabase)"
   fi
   
   # Run migrations
