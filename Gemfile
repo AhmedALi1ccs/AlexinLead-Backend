@@ -13,7 +13,7 @@ gem 'secure_headers'
 
 # Fix ffi version for compatibility
 gem 'ffi', '~> 1.16.3'
-
+gem 'jsonapi-serializer'
 # Security gems
 gem 'bcrypt', '~> 3.1.7'  # Password hashing
 gem 'jwt', '~> 2.7'       # JSON Web Tokens
