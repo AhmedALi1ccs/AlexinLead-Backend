@@ -11,18 +11,24 @@ WORKDIR /rails
 ENV RAILS_ENV="production" \
     BUNDLE_DEPLOYMENT="1" \
     BUNDLE_PATH="/usr/local/bundle" \
-    BUNDLE_WITHOUT="development"
+    BUNDLE_WITHOUT="development:test" \
+    RAILS_SERVE_STATIC_FILES="1" \
+    RAILS_LOG_TO_STDOUT="1"
 
 # Throw-away build stage to reduce size of final image
 FROM base as build
 
-# Install packages needed to build gems
+# Install packages needed to build gems and run the app
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential git libpq-dev libvips pkg-config && \
-    rm -rf /var/lib/apt/lists/*
-
-# Update RubyGems to fix nokogiri issue
-RUN gem update --system 3.3.22
+    apt-get install --no-install-recommends -y \
+    build-essential \
+    curl \
+    git \
+    libpq-dev \
+    libvips \
+    pkg-config \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install application gems
 COPY Gemfile Gemfile.lock ./
@@ -33,9 +39,6 @@ RUN bundle install && \
 # Copy application code
 COPY . .
 
-# Set Rails master key
-RUN echo "6bbbed9bb8d79f5b0c7281106fc48149" > config/master.key
-
 # Precompile bootsnap code for faster boot times
 RUN bundle exec bootsnap precompile app/ lib/
 
@@ -44,8 +47,11 @@ FROM base
 
 # Install packages needed for deployment
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libvips postgresql-client && \
-    rm -rf /var/lib/apt/lists /var/cache/apt/archives
+    apt-get install --no-install-recommends -y \
+    curl \
+    libvips \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 # Copy built artifacts: gems, application
 COPY --from=build /usr/local/bundle /usr/local/bundle
@@ -53,16 +59,20 @@ COPY --from=build /rails /rails
 
 # Run and own only the runtime files as a non-root user for security
 RUN useradd rails --create-home --shell /bin/bash && \
-    chown -R rails:rails db log storage tmp
+    mkdir -p /rails/storage /rails/log /rails/tmp && \
+    chown -R rails:rails /rails
 USER rails:rails
 
-# Create simple entrypoint since we don't have bin/docker-entrypoint
-RUN echo '#!/bin/bash\nset -e\nrm -f tmp/pids/server.pid\nexec "$@"' > /rails/bin/docker-entrypoint && \
-    chmod +x /rails/bin/docker-entrypoint
+# Create directories for file uploads and logs
+RUN mkdir -p /rails/storage/uploads /rails/log /rails/tmp/pids
 
-# Entrypoint prepares the database.
+# Add health check endpoint
+COPY --chown=rails:rails docker-entrypoint.sh /rails/bin/docker-entrypoint
+RUN chmod +x /rails/bin/docker-entrypoint
+
+# Entrypoint prepares the database and starts the server
 ENTRYPOINT ["/rails/bin/docker-entrypoint"]
 
-# Start the server by default, this can be overwritten at runtime
+# Start the server by default
 EXPOSE 3000
 CMD ["./bin/rails", "server", "-b", "0.0.0.0"]

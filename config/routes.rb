@@ -1,6 +1,12 @@
 Rails.application.routes.draw do
+   get 'health', to: 'api/v1/health#check'
+  get 'ping', to: 'api/v1/health#ping'
+  
   namespace :api do
     namespace :v1 do
+      # Health check
+      get 'health', to: 'health#check'
+      get 'ping', to: 'health#ping'
       # Authentication routes
       post 'auth/login', to: 'authentication#login'
       post 'auth/logout', to: 'authentication#logout'
@@ -50,9 +56,6 @@ Rails.application.routes.draw do
       
       # Audit logs
       resources :access_logs, only: [:index, :show]
-      
-      # Health check
-      get 'health', to: 'health#check'
 
       # LED Screen Rental Routes
       # Orders
