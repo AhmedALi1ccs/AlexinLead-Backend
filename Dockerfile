@@ -1,40 +1,77 @@
-# Use a pre-built Rails image that already has nokogiri and other gems compiled
-FROM ruby:3.1.2
+# syntax = docker/dockerfile:1
 
-# Set working directory
+ARG RUBY_VERSION=3.1.2
+FROM registry.docker.com/library/ruby:$RUBY_VERSION-slim as base
+
 WORKDIR /rails
 
-# Set environment variables
-ENV RAILS_ENV=production \
+ENV RAILS_ENV="production" \
+    BUNDLE_DEPLOYMENT="1" \
+    BUNDLE_PATH="/usr/local/bundle" \
     BUNDLE_WITHOUT="development:test" \
-    RAILS_SERVE_STATIC_FILES=1 \
-    RAILS_LOG_TO_STDOUT=1
+    RAILS_SERVE_STATIC_FILES="1" \
+    RAILS_LOG_TO_STDOUT="1"
 
-# Install system dependencies that Rails needs
+# Build stage
+FROM base as build
+
+# Install comprehensive build dependencies
 RUN apt-get update -qq && \
-    apt-get install -y \
-    postgresql-client \
+    apt-get install --no-install-recommends -y \
+    build-essential \
+    git \
+    curl \
+    libpq-dev \
+    libxml2-dev \
+    libxslt1-dev \
+    libffi-dev \
+    libssl-dev \
+    zlib1g-dev \
+    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Gemfile and install gems
+# Update RubyGems and Bundler
+RUN gem update --system && \
+    gem install bundler
+
+# Copy Gemfile files
 COPY Gemfile Gemfile.lock ./
-RUN bundle install
+
+# Install gems
+RUN bundle install && \
+    rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache
 
 # Copy application code
 COPY . .
 
-# Create user for security
-RUN useradd --create-home --shell /bin/bash rails && \
-    chown -R rails:rails /rails
-USER rails
+# Final stage
+FROM base
 
-# Copy entrypoint script
-COPY docker-entrypoint.sh /rails/bin/
+# Install minimal runtime dependencies
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y \
+    curl \
+    postgresql-client \
+    libxml2 \
+    libxslt1.1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy everything from build stage
+COPY --from=build /usr/local/bundle /usr/local/bundle
+COPY --from=build /rails /rails
+
+# Create user and set permissions
+RUN useradd rails --create-home --shell /bin/bash && \
+    mkdir -p /rails/log /rails/tmp /rails/storage && \
+    chown -R rails:rails /rails
+
+USER rails:rails
+
+# Set up entrypoint
+COPY --chown=rails:rails docker-entrypoint.sh /rails/bin/
 RUN chmod +x /rails/bin/docker-entrypoint.sh
 
-# Expose port
-EXPOSE 3000
-
-# Set entrypoint
 ENTRYPOINT ["/rails/bin/docker-entrypoint.sh"]
-CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0"]
+
+EXPOSE 3000
+CMD ["./bin/rails", "server", "-b", "0.0.0.0"]
