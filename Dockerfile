@@ -6,7 +6,7 @@ WORKDIR /app
 RUN apt-get update -qq && apt-get install -y postgresql-client
 
 # Copy Gemfile
-COPY Gemfile Gemfile.lock ./
+COPY Gemfile* ./
 
 # Install gems
 RUN bundle install
