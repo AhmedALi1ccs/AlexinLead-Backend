@@ -12,6 +12,7 @@ gem 'redis', '~> 5.0'
 # Security - BASIC ONLY
 gem 'bcrypt', '~> 3.1.7'
 gem 'rack-cors', '~> 2.0'
+gem 'rack-attack', '~> 7.0'   # 6.7+ is the first line that works with Rack 3
 
 # API
 gem 'jsonapi-serializer', '~> 2.2'
