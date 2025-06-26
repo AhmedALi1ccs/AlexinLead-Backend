@@ -1,51 +1,50 @@
-# syntax=docker/dockerfile:1
+# syntax = docker/dockerfile:1
 
-########################### 1. BUILD STAGE ###########################
+# Use official Ruby image matching .ruby-version
 ARG RUBY_VERSION=3.1.2
-FROM ruby:${RUBY_VERSION}-slim AS build
+FROM registry.docker.com/library/ruby:${RUBY_VERSION}-slim AS base
 
-# Native-extension toolchain + headers (build-only)
+WORKDIR /rails
+
+# Ensure production environment and Bundler settings
+ENV RAILS_ENV=production \
+    BUNDLE_DEPLOYMENT=1 \
+    BUNDLE_PATH=/usr/local/bundle \
+    BUNDLE_WITHOUT="development test"
+
+#-----------------------------------------
+# Builder stage: compile gems & assets
+#-----------------------------------------
+FROM base AS build
+
+# Install system dependencies for native gems, including FFI and libsodium headers
 RUN apt-get update -qq && \
-    apt-get install -y --no-install-recommends \
+    apt-get install --no-install-recommends -y \
       build-essential git libpq-dev libvips pkg-config \
-      libsodium-dev && \
+      libxml2-dev libxslt1-dev libffi-dev libsodium-dev && \
     rm -rf /var/lib/apt/lists/*
 
-ENV BUNDLE_PATH=/gems \
-    BUNDLE_WITHOUT="development test" \
-    BUNDLE_JOBS=4 BUNDLE_RETRY=3 \
-    NOKOGIRI_USE_SYSTEM_LIBRARIES=true
+#-----------------------------------------
+# Final stage: runtime image
+#-----------------------------------------
+FROM base
 
-WORKDIR /app
-
-# 1 ▸ Install gems (cacheable layer)
-COPY Gemfile Gemfile.lock ./
-RUN gem update --system 3.3.22 \
- && bundle install \
- && bundle clean --force
-
-# 2 ▸ Copy the rest of the application
-COPY . .
-
-########################### 2. RUNTIME STAGE ###########################
-FROM ruby:${RUBY_VERSION}-slim AS runtime
-
-# Install only runtime dependencies
+# Install runtime packages
 RUN apt-get update -qq && \
-    apt-get install -y --no-install-recommends \
-      libpq-dev libvips pkg-config libsodium23 && \
+    apt-get install --no-install-recommends -y \
+      curl libvips postgresql-client && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy built gems and app code from build stage
-COPY --from=build /app /app
-WORKDIR /app
+# Copy gems and application from build
+COPY --from=build /usr/local/bundle /usr/local/bundle
+COPY --from=build /rails /rails
 
-# Entrypoint script
-RUN printf '#!/bin/sh\nset -e\nrm -f /app/tmp/pids/server.pid\nexec "$@"\n' \
-      > /usr/local/bin/docker-entrypoint && \
-    chmod +x /usr/local/bin/docker-entrypoint
-
+# Create non-root user and set permissions
+RUN useradd rails --create-home --shell /bin/bash && \
+    chown -R rails:rails /rails
 USER rails:rails
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint"]
-CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0"]
+
+# Entrypoint to prepare DB, then default to rails server
+ENTRYPOINT ["/rails/bin/docker-entrypoint"]
 EXPOSE 3000
+CMD ["./bin/rails", "server", "-b", "0.0.0.0", "-p", "3000"]
