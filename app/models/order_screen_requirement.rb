@@ -29,8 +29,8 @@ class OrderScreenRequirement < ApplicationRecord
     pixel_pitch = screen_inventory.pixel_pitch.to_f
     
     # Standard LED panel size calculations (typical 500x500mm panels)
-    panel_width = 0.5  # 500mm = 0.5m
-    panel_height = 0.5 # 500mm = 0.5m
+    panel_width = 1  # 500mm = 0.5m
+    panel_height = 1# 500mm = 0.5m
     
     total_width = dimensions_columns * panel_width
     total_height = dimensions_rows * panel_height
@@ -53,7 +53,7 @@ class OrderScreenRequirement < ApplicationRecord
     return unless calculated
     
     # Allow 5% tolerance for rounding
-    tolerance = 0.05
+    tolerance = 1
     if (sqm_required - calculated).abs > (calculated * tolerance)
       errors.add(:sqm_required, "doesn't match calculated area from dimensions (#{calculated}m²)")
     end

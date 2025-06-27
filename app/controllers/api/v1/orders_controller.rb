@@ -119,6 +119,15 @@ end
       @order.dimensions_rows = 1
       @order.dimensions_columns = 1
     end
+    Rails.logger.debug "🧪 Order valid? #{@order.valid?}"
+    Rails.logger.debug "🧪 Order errors: #{@order.errors.full_messages}"
+
+    @order.order_screen_requirements.each_with_index do |req, i|
+      Rails.logger.debug "📦 Screen requirement #{i}: #{req.attributes}"
+      Rails.logger.debug "  ↪ Valid? #{req.valid?}"
+      Rails.logger.debug "  ↪ Errors: #{req.errors.full_messages}"
+    end
+
     
     if @order.save
       render json: {
@@ -279,7 +288,7 @@ def serialize_order(order, include_details: false, calendar_view: false)
             calculated_sqm:    req.calculated_sqm,
             reserved_at:       req.reserved_at,
             configuration:     "#{req.dimensions_rows} × #{req.dimensions_columns} panels",
-            physical_size:     "#{req.dimensions_columns * 0.5}m × #{req.dimensions_rows * 0.5}m",
+            physical_size: "#{req.dimensions_columns}m × #{req.dimensions_rows}m",
             total_panels:      req.dimensions_rows * req.dimensions_columns,
           }
         end,
@@ -306,7 +315,8 @@ def serialize_order(order, include_details: false, calendar_view: false)
       calculated_sqm: requirement.calculated_sqm,
       reserved_at: requirement.reserved_at,
       configuration: "#{requirement.dimensions_rows} × #{requirement.dimensions_columns} panels",
-      physical_size: "#{requirement.dimensions_columns * 0.5}m × #{requirement.dimensions_rows * 0.5}m",
+      physical_size: "#{requirement.dimensions_columns}m × #{requirement.dimensions_rows}m",
+
       total_panels: requirement.dimensions_rows * requirement.dimensions_columns,
       screen_inventory_id: requirement.screen_inventory_id
     }
