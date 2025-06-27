@@ -98,7 +98,8 @@ Rails.application.configure do
   # Configure CORS for production
   config.middleware.insert_before 0, Rack::Cors do
     allow do
-      origins "http://localhost:5173"
+      # origins "http://localhost:5173"
+      origins "https://king-prawn-app-9yzxy.ondigitalocean.app"
       resource "*",
         headers: :any,
         methods: [:get, :post, :put, :patch, :delete, :options, :head],
