@@ -3,17 +3,46 @@ class Api::V1::CompaniesController < ApplicationController
   before_action :authorize_admin!, except: [:index, :show]
   
   def index
-    @companies = Company.all.order(:name)
-    
-    # Filters
-    @companies = @companies.active if params[:active_only] == 'true'
-    @companies = @companies.where('name ILIKE ?', "%#{params[:q]}%") if params[:q].present?
-    
-    render json: {
-      companies: @companies.map { |company| serialize_company(company) },
-      top_performers: Company.top_performers.active.limit(5).map { |company| serialize_company(company, include_stats: true) }
-    }
+  @companies = Company.all.order(:name)
+  
+  # Search by name or contact person
+  if params[:q].present?
+    @companies = @companies.where(
+      'name ILIKE ? OR contact_person ILIKE ?', 
+      "%#{params[:q]}%", 
+      "%#{params[:q]}%"
+    )
   end
+  
+  # Filter by active status
+  case params[:active_only]
+  when 'true'
+    @companies = @companies.where(is_active: true)
+  when 'false'
+    @companies = @companies.where(is_active: false)
+  # when nil or empty string - return all companies (no filter)
+  end
+  
+  # Pagination
+  page = params[:page]&.to_i || 1
+  per_page = params[:per_page]&.to_i || 20
+  
+  total_count = @companies.count
+  total_pages = (total_count.to_f / per_page).ceil
+  
+  @companies = @companies.offset((page - 1) * per_page).limit(per_page)
+  
+  render json: {
+    companies: @companies.map { |company| serialize_company(company) },
+    pagination: {
+      current_page: page,
+      total_pages: total_pages,
+      total_count: total_count,
+      per_page: per_page
+    },
+    top_performers: Company.top_performers.active.limit(5).map { |company| serialize_company(company, include_stats: true) }
+  }
+end
   
   def show
     render json: {
@@ -52,10 +81,14 @@ class Api::V1::CompaniesController < ApplicationController
     end
   end
   
-  def destroy
-    @company.update!(is_active: false)
-    render json: { message: 'Company deactivated successfully' }
-  end
+def deactivate
+  @company.update!(is_active: false)
+  render json: { message: 'Company deactivated successfully' }
+end
+ def destroy
+  @company.destroy!
+  render json: { message: 'Company deleted permanently' }
+end
   
   def stats
     render json: {
