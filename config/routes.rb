@@ -77,6 +77,9 @@ Rails.application.routes.draw do
       
       # Companies (3rd Party Providers)
       resources :companies do
+        member do
+          patch :deactivate  
+        end
         collection do
           get :stats
         end

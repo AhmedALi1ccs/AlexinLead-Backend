@@ -29,10 +29,11 @@ class Order < ApplicationRecord
   after_create :reserve_inventory_and_equipment
   after_update :handle_status_changes
   
-  scope :active, -> { 
-  where(order_status: 'confirmed')
-    .where('start_date <= ? AND end_date >= ?', Date.current, Date.current) 
+  scope :active, -> {
+  today = Date.current
+  where("DATE(start_date) <= ? AND DATE(end_date) >= ?", today, today)
 }
+
   scope :cancelled, -> { where(order_status: 'cancelled') }
   scope :paid, -> { where(payment_status: 'received') }
   scope :unpaid, -> { where(payment_status: 'not_received') }
