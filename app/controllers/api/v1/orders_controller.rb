@@ -40,6 +40,13 @@ class Api::V1::OrdersController < ApplicationController
         query: "%#{params[:q]}%"
       )
     end
+    if params[:active].present?
+        if params[:active] == 'true'
+          @orders = @orders.active
+        elsif params[:active] == 'false'
+          @orders = @orders.where.not(id: Order.active.select(:id))
+        end
+      end
     
     # Pagination
     page = (params[:page] || 1).to_i
