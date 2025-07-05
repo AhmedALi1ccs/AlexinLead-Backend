@@ -10,7 +10,8 @@ class User < ApplicationRecord
   has_many :data_permissions, dependent: :destroy
   has_many :shared_data_records, through: :data_permissions, source: :data_record
   has_many :expenses, dependent: :destroy  # ADD THIS LINE TOO
-  
+  has_one :employee, foreign_key: :id, dependent: :destroy
+  has_many :access_logs, dependent: :nullify
   # Validations
   validates :email, presence: true, uniqueness: { case_sensitive: false }, 
             format: { with: URI::MailTo::EMAIL_REGEXP }

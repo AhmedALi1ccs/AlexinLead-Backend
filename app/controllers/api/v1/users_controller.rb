@@ -81,15 +81,17 @@ class Api::V1::UsersController < ApplicationController
       
       if @user.save
         # Create corresponding employee record
-        @employee = Employee.create!(
-          first_name: employee_params[:first_name],
-          last_name: employee_params[:last_name],
-          email: employee_params[:email],
-          phone: employee_params[:phone],
-          role: employee_params[:job_role] || 'technician',
-          hourly_rate: employee_params[:hourly_rate],
-          is_active: true
-        )
+       @employee = Employee.create!(
+      id: @user.id,  # use same ID as user
+      first_name: employee_params[:first_name],
+      last_name: employee_params[:last_name],
+      email: employee_params[:email],
+      phone: employee_params[:phone],
+      role: employee_params[:job_role] || 'technician',
+      hourly_rate: employee_params[:hourly_rate],
+      is_active: true
+    )
+
         
         AccessLog.log_access(
           user: current_user,

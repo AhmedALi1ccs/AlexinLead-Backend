@@ -2,7 +2,7 @@ class Employee < ApplicationRecord
   self.primary_key = 'id'
   has_many :installing_orders, class_name: 'Order', foreign_key: 'installing_assignee_id'
   has_many :disassembling_orders, class_name: 'Order', foreign_key: 'disassemble_assignee_id'
-  
+  belongs_to :user, foreign_key: :id, inverse_of: :employee
   validates :first_name, :last_name, :email, presence: true
   validates :email, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :hourly_rate, numericality: { greater_than: 0 }, allow_nil: true
