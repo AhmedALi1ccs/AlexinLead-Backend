@@ -47,7 +47,7 @@ class Api::V1::OrdersController < ApplicationController
         elsif params[:active] == 'false'
           @orders = @orders.where.not(id: Order.active.select(:id))
         end
-      end
+    end
     
     # Pagination
     page = (params[:page] || 1).to_i
@@ -80,8 +80,8 @@ class Api::V1::OrdersController < ApplicationController
     .order("location_name ASC")
     .limit(10)
 
-  render json: suggestions.map { |o| { location_name: o.location_name, google_maps_link: o.google_maps_link } }
-end
+    render json: suggestions.map { |o| { location_name: o.location_name, google_maps_link: o.google_maps_link } }
+  end
 
   def show
     render json: {
@@ -233,9 +233,9 @@ end
   else
     @order = current_user.orders.find(params[:id])
   end
-rescue ActiveRecord::RecordNotFound
-  render json: { error: 'Order not found' }, status: :not_found
-end
+  rescue ActiveRecord::RecordNotFound
+    render json: { error: 'Order not found' }, status: :not_found
+  end
 
   
   
@@ -259,10 +259,10 @@ end
 
 def serialize_order(order, include_details: false, calendar_view: false)
     data = {
-      # ← everything you had before in your “original” payload
       id:                       order.id,
       order_id:                 order.order_id,
       location_name:            order.location_name,
+      google_maps_link:         order.google_maps_link,
       start_date:               order.start_date,
       end_date:                 order.end_date,
       duration_days:            order.duration_days,
@@ -275,42 +275,47 @@ def serialize_order(order, include_details: false, calendar_view: false)
       installing_assignee:      (order.installing_assignee && { id: order.installing_assignee.id, name: order.installing_assignee.full_name }),
       disassemble_assignee:     (order.disassemble_assignee && { id: order.disassemble_assignee.id, name: order.disassemble_assignee.full_name }),
       third_party_provider:     (order.third_party_provider && { id: order.third_party_provider.id, name: order.third_party_provider.name }),
+      payed: order.payed,
+      remaining: order.remaining,
     }
 
-    # ← **new** total/payed/remaining
+
     data[:payed]     = order.payed
     data[:remaining] = order.remaining
 
+    data[:order_screen_requirements] = order.order_screen_requirements.includes(:screen_inventory).map do |req|
+      {
+        id: req.id,
+        screen_type: req.screen_inventory.screen_type,
+        pixel_pitch: req.screen_inventory.pixel_pitch,
+        sqm_required: req.sqm_required,
+        dimensions_rows: req.dimensions_rows,
+        dimensions_columns: req.dimensions_columns,
+        calculated_sqm: req.calculated_sqm,
+        reserved_at: req.reserved_at,
+        configuration: "#{req.dimensions_rows} × #{req.dimensions_columns} panels",
+        physical_size: "#{req.dimensions_columns}m × #{req.dimensions_rows}m",
+        total_panels: req.dimensions_rows * req.dimensions_columns,
+      }
+    end
+
+    # Then include other details only if needed
     if include_details
       data.merge!(
         google_maps_link: order.google_maps_link,
         price_per_sqm:    order.price_per_sqm,
         notes:            order.notes,
         can_cancel:       order.can_cancel?,
-        screen_requirements: order.order_screen_requirements.includes(:screen_inventory).map do |req|
-          {
-            id:                req.id,
-            screen_type:       req.screen_inventory.screen_type,
-            pixel_pitch:       req.screen_inventory.pixel_pitch,
-            sqm_required:      req.sqm_required,
-            dimensions_rows:   req.dimensions_rows,
-            dimensions_columns:req.dimensions_columns,
-            calculated_sqm:    req.calculated_sqm,
-            reserved_at:       req.reserved_at,
-            configuration:     "#{req.dimensions_rows} × #{req.dimensions_columns} panels",
-            physical_size: "#{req.dimensions_columns}m × #{req.dimensions_rows}m",
-            total_panels:      req.dimensions_rows * req.dimensions_columns,
-          }
-        end,
         assigned_equipment: {
-          laptops:          order.equipment.laptops.map { |e| serialize_equipment(e) },
+          laptops: order.equipment.laptops.map { |e| serialize_equipment(e) },
           video_processors: order.equipment.video_processors.map { |e| serialize_equipment(e) }
         }
       )
     end
 
+
     data
-  end
+end
 
 
 
@@ -363,5 +368,5 @@ def serialize_order(order, include_details: false, calendar_view: false)
     ).sum(:total_amount) || 0,
     partial_payments: orders.where(payment_status: 'partial').count
   }
-end
+ end
 end
