@@ -81,16 +81,17 @@ class Api::V1::UsersController < ApplicationController
       
       if @user.save
         # Create corresponding employee record
-       @employee = Employee.create!(
-      id: @user.id,  # use same ID as user
-      first_name: employee_params[:first_name],
-      last_name: employee_params[:last_name],
-      email: employee_params[:email],
-      phone: employee_params[:phone],
-      role: employee_params[:job_role] || 'technician',
-      hourly_rate: employee_params[:hourly_rate],
-      is_active: true
-    )
+        @employee = Employee.create!(
+          id: @user.id,
+          first_name: employee_params[:first_name],
+          last_name: employee_params[:last_name],
+          email: employee_params[:email],
+          phone: employee_params[:phone],
+          role: employee_params[:job_role] || 'technician',
+          hourly_rate: employee_params[:hourly_rate],
+          contract_type: employee_params[:contract_type], # 👈 added
+          is_active: true
+        )
 
         
         AccessLog.log_access(
@@ -123,6 +124,9 @@ class Api::V1::UsersController < ApplicationController
   
   def update
     if @user.update(user_update_params)
+      if params[:user][:contract_type].present?
+        @user.employee&.update(contract_type: params[:user][:contract_type])
+      end
       AccessLog.log_access(
         user: current_user,
         action: 'update_user',
@@ -210,7 +214,7 @@ class Api::V1::UsersController < ApplicationController
   end
 
   def employee_params
-    params.require(:employee).permit(:first_name, :last_name, :email, :phone, :role, :job_role, :hourly_rate)
+    params.require(:employee).permit(:first_name, :last_name, :email, :phone, :role, :job_role, :hourly_rate, :contract_type)
   end
   
   def user_update_params
@@ -237,7 +241,8 @@ class Api::V1::UsersController < ApplicationController
         failed_login_attempts: user.failed_login_attempts,
         locked_until: user.locked_until,
         orders_count: user.orders.count,
-        expenses_count: user.expenses.count
+        expenses_count: user.expenses.count,
+        contract_type: user.employee&.contract_type
       })
     end
     

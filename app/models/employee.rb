@@ -6,7 +6,8 @@ class Employee < ApplicationRecord
   validates :first_name, :last_name, :email, presence: true
   validates :email, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :hourly_rate, numericality: { greater_than: 0 }, allow_nil: true
-  
+  validates :contract_type, inclusion: { in: %w[PAG LT] }, allow_nil: true
+
   scope :active, -> { where(is_active: true) }
   
   def full_name
