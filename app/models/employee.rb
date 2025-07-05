@@ -1,4 +1,5 @@
 class Employee < ApplicationRecord
+  self.primary_key = 'id'
   has_many :installing_orders, class_name: 'Order', foreign_key: 'installing_assignee_id'
   has_many :disassembling_orders, class_name: 'Order', foreign_key: 'disassemble_assignee_id'
   
