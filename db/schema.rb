@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_06_24_214443) do
+ActiveRecord::Schema[7.0].define(version: 2025_07_05_123756) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -214,7 +214,6 @@ ActiveRecord::Schema[7.1].define(version: 2025_06_24_214443) do
     t.index ["start_date", "end_date"], name: "index_orders_on_start_date_and_end_date"
     t.index ["third_party_provider_id"], name: "index_orders_on_third_party_provider_id"
     t.index ["user_id"], name: "index_orders_on_user_id"
-    t.check_constraint "end_date > start_date", name: "orders_valid_date_range_check"
     t.check_constraint "laptops_needed > 0 AND video_processors_needed > 0", name: "orders_positive_equipment_counts_check"
     t.check_constraint "order_status::text = ANY (ARRAY['confirmed'::character varying, 'cancelled'::character varying]::text[])", name: "orders_status_check"
     t.check_constraint "payment_status::text = ANY (ARRAY['received'::character varying, 'not_received'::character varying, 'partial'::character varying]::text[])", name: "orders_payment_status_check"
@@ -289,8 +288,8 @@ ActiveRecord::Schema[7.1].define(version: 2025_06_24_214443) do
   add_foreign_key "order_screen_requirements", "orders"
   add_foreign_key "order_screen_requirements", "screen_inventory"
   add_foreign_key "orders", "companies", column: "third_party_provider_id"
-  add_foreign_key "orders", "employees", column: "disassemble_assignee_id"
-  add_foreign_key "orders", "employees", column: "installing_assignee_id"
+  add_foreign_key "orders", "employees", column: "disassemble_assignee_id", on_delete: :nullify
+  add_foreign_key "orders", "employees", column: "installing_assignee_id", on_delete: :nullify
   add_foreign_key "orders", "users"
   add_foreign_key "screen_maintenances", "screen_inventory"
   add_foreign_key "user_sessions", "users", on_delete: :cascade

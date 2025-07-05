@@ -3,7 +3,8 @@ class Api::V1::OrdersController < ApplicationController
   before_action :check_edit_access, only: [:update, :destroy, :cancel,:pay]
   
   def index
-   if current_user.admin?
+  if current_user.admin? || current_user.role == 'viewer'
+
   @orders = Order.includes(
     :installing_assignee, :disassemble_assignee, :third_party_provider, :order_screen_requirements, :user
   ).order(created_at: :desc)
@@ -227,14 +228,16 @@ end
   private
   
   def set_order
-    if current_user.admin?
-  @order = Order.find(params[:id])
-else
-  @order = current_user.orders.find(params[:id])
-end
-  rescue ActiveRecord::RecordNotFound
-    render json: { error: 'Order not found' }, status: :not_found
+  if current_user.admin? || current_user.role == 'viewer'
+    @order = Order.find(params[:id])
+  else
+    @order = current_user.orders.find(params[:id])
   end
+rescue ActiveRecord::RecordNotFound
+  render json: { error: 'Order not found' }, status: :not_found
+end
+
+  
   
   def check_edit_access
     unless @order.user == current_user || current_user.admin?
