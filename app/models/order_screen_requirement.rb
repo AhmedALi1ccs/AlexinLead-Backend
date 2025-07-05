@@ -25,8 +25,6 @@ class OrderScreenRequirement < ApplicationRecord
   def calculated_sqm
     return nil unless dimensions_rows.present? && dimensions_columns.present?
     
-    # Calculate based on screen pixel pitch and standard panel sizes
-    pixel_pitch = screen_inventory.pixel_pitch.to_f
     
     # Standard LED panel size calculations (typical 500x500mm panels)
     panel_width = 1  # 500mm = 0.5m

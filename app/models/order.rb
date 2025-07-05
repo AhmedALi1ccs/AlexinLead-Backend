@@ -59,10 +59,10 @@ class Order < ApplicationRecord
     summary.join(', ')
   end
   def is_active_today?
-  order_status == 'confirmed' && 
-  Date.current >= start_date.to_date && 
-  Date.current <= end_date.to_date
-end
+    order_status == 'confirmed' && 
+    Date.current >= start_date.to_date && 
+    Date.current <= end_date.to_date
+  end
 
 def is_happening_today?
   is_active_today?
