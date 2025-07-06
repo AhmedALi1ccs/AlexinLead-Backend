@@ -265,6 +265,7 @@ def serialize_order(order, include_details: false, calendar_view: false)
       google_maps_link:         order.google_maps_link,
       start_date:               order.start_date,
       end_date:                 order.end_date,
+      due_date:                 order.due_date,
       duration_days:            order.duration_days,
       order_status:             order.order_status,
       payment_status:           order.payment_status,
