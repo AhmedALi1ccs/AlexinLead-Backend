@@ -4,7 +4,7 @@ class ExpenseSerializer < ActiveModel::Serializer
              :auto_generated, :approved_at
   
   belongs_to :user, serializer: UserSerializer
-  belongs_to :order, serializer: OrderSerializer, if: :has_order?
+  belongs_to :order, if: :has_order
   belongs_to :recurring_expense, serializer: RecurringExpenseSerializer, if: :has_recurring_expense?
   belongs_to :approved_by, serializer: UserSerializer, if: :has_approved_by?
   
