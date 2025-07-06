@@ -48,6 +48,18 @@ class Api::V1::OrdersController < ApplicationController
           @orders = @orders.where.not(id: Order.active.select(:id))
         end
     end
+    if params[:due_filter].present?
+      unpaid_statuses = ['not_received', 'partial']
+      @orders = @orders.where(payment_status: unpaid_statuses).where.not(order_status: 'cancelled')
+
+      case params[:due_filter]
+      when 'overdue'
+        @orders = @orders.where('due_date IS NOT NULL AND due_date < ?', Date.current)
+      when 'due_this_week'
+        @orders = @orders.where(due_date: Date.current..1.week.from_now)
+      end
+    end
+
     
     # Pagination
     page = (params[:page] || 1).to_i
