@@ -98,30 +98,6 @@ def availability_for_dates
   assigned_equipment_ids = OrderEquipmentAssignment
     .joins(:order)
     .where(orders: { order_status: 'confirmed' })
-    .where(orders: { order_status: ['confirmed', 'in_progress'] })
-    .where(returned_at: nil)
-    .pluck(:equipment_id)
-
-  availability = {
-    laptops: calculate_type_availability('laptop', assigned_equipment_ids),
-    video_processors: calculate_type_availability('video_processor', assigned_equipment_ids),
-    cables: calculate_type_availability('cable', assigned_equipment_ids)
-  }
-
-  render json: {
-    availability: availability,
-    date_range: { start_date: start_date, end_date: end_date },
-    can_fulfill_order: true
-  }
-end
-# Add this method ONLY if it doesn't exist already
-def availability_for_dates
-  start_date = Date.parse(params[:start_date]) rescue Date.current
-  end_date = Date.parse(params[:end_date]) rescue Date.current + 7.days
-
-  assigned_equipment_ids = OrderEquipmentAssignment
-    .joins(:order)
-    .where(orders: { order_status: 'confirmed' })
     .where('orders.start_date <= ? AND orders.end_date >= ?', end_date, start_date)
     .where('order_equipment_assignments.returned_at IS NULL OR order_equipment_assignments.returned_at >= ?', start_date)
     .pluck(:equipment_id)

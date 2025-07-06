@@ -150,15 +150,19 @@ class Api::V1::OrdersController < ApplicationController
 
     
     if @order.save
+    begin
+      assign_equipment(@order)
       render json: {
         message: 'Order created and confirmed successfully',
         order: serialize_order(@order, include_details: true)
       }, status: :created
-    else
+    rescue => e
+      @order.destroy # roll back if you can't assign equipment
       render json: {
-        error: 'Failed to create order',
-        errors: @order.errors.full_messages
+        error: 'Could not assign equipment',
+        details: e.message
       }, status: :unprocessable_entity
+    end
     end
   end
   
@@ -360,6 +364,41 @@ end
     }
   end
 
+  def assign_equipment(order)
+    assign_equipment_type(order, 'laptop', order.laptops_needed)
+    assign_equipment_type(order, 'video_processor', order.video_processors_needed)
+  end
+
+def assign_equipment_type(order, type, quantity)
+  return if quantity.to_i < 1
+
+  # Identify conflicting equipment
+  conflicting_ids = OrderEquipmentAssignment
+    .joins(:order)
+    .where('orders.start_date <= ? AND orders.end_date >= ?', order.end_date, order.start_date)
+    .where(orders: { order_status: ['confirmed', 'in_progress'] })
+    .where(returned_at: nil)
+    .pluck(:equipment_id)
+
+  # Get available equipment
+  available_items = Equipment
+    .where(equipment_type: type)
+    .where.not(status: 'retired')
+    .where.not(id: conflicting_ids)
+    .distinct
+    .limit(quantity)
+
+  raise "Not enough available #{type.pluralize}" if available_items.size < quantity
+
+  available_items.each do |equipment|
+    OrderEquipmentAssignment.create!(
+      order_id: order.id,
+      equipment_id: equipment.id,
+      assigned_at: order.start_date
+    )
+  end
+end
+
 
   
  def calculate_order_stats
@@ -382,4 +421,5 @@ end
     partial_payments: orders.where(payment_status: 'partial').count
   }
  end
+ 
 end
