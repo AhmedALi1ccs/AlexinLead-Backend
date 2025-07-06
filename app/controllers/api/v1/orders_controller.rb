@@ -247,7 +247,7 @@ class Api::V1::OrdersController < ApplicationController
   
   def order_params
     params.require(:order).permit(
-      :google_maps_link, :location_name, :start_date, :end_date, 
+      :google_maps_link, :location_name, :start_date, :end_date,  :due_date,
       :installing_assignee_id, :disassemble_assignee_id,
       :third_party_provider_id, :price_per_sqm, :payment_status, :notes,
       :laptops_needed, :video_processors_needed,

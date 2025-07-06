@@ -26,27 +26,61 @@ class Order < ApplicationRecord
 
   before_validation :generate_order_id, on: :create
   before_save :calculate_duration_days
+  before_save :update_overdue_status
   after_create :reserve_inventory_and_equipment
   after_update :handle_status_changes
   
   scope :active, -> {
-  today = Date.current
-  where("DATE(start_date) <= ? AND DATE(end_date) >= ?", today, today)
-}
-
+    today = Date.current
+    where("DATE(start_date) <= ? AND DATE(end_date) >= ?", today, today)
+  }
   scope :cancelled, -> { where(order_status: 'cancelled') }
   scope :paid, -> { where(payment_status: 'received') }
-  scope :unpaid, -> { where(payment_status: 'not_received') }
+  scope :unpaid, -> { where(payment_status: ['not_received', 'partial']) }
   scope :partial_paid, -> { where(payment_status: 'partial') }
   scope :current_month, -> { where(created_at: Time.current.beginning_of_month..Time.current.end_of_month) }
   scope :for_date, ->(date) { where('start_date <= ? AND end_date >= ?', date, date) }
+  scope :overdue, -> { where('due_date < ? AND payment_status != ?', Date.current, 'received') }
+  scope :due_soon, -> { where(due_date: Date.current..1.week.from_now) }
   
   def total_sqm_required
     order_screen_requirements.sum(:sqm_required)
   end
+  
   def remaining
     total_amount - payed
   end
+  
+  def outstanding_amount
+    total_amount - payed
+  end
+  
+  def days_overdue
+    return 0 unless due_date && due_date < Date.current && payment_status != 'received'
+    (Date.current - due_date).to_i
+  end
+  
+  def overdue?
+    due_date && due_date < Date.current && payment_status != 'received'
+  end
+  
+  def payment_progress_percentage
+    return 0 if total_amount == 0
+    ((payed / total_amount) * 100).round(2)
+  end
+  
+  def generate_invoice_number
+    return if invoice_number.present?
+    
+    year = created_at.year
+    month = created_at.strftime('%m')
+    sequence = Order.where(
+      created_at: created_at.beginning_of_month..created_at.end_of_month
+    ).count + 1
+    
+    self.invoice_number = "INV-#{year}#{month}-#{sequence.to_s.rjust(4, '0')}"
+  end
+  
   def total_dimensions_summary
     requirements = order_screen_requirements.includes(:screen_inventory)
     summary = requirements.map do |req|
@@ -58,15 +92,16 @@ class Order < ApplicationRecord
     end
     summary.join(', ')
   end
+  
   def is_active_today?
     order_status == 'confirmed' && 
     Date.current >= start_date.to_date && 
     Date.current <= end_date.to_date
   end
 
-def is_happening_today?
-  is_active_today?
-end
+  def is_happening_today?
+    is_active_today?
+  end
   
   def revenue
     return 0 unless payment_status == 'received'
@@ -149,7 +184,6 @@ end
     self.order_id = "#{date_str}_#{suffix}"
   end
 
-  
   def end_date_after_start_date
     return unless start_date && end_date
     errors.add(:end_date, 'must be after start date') if end_date < start_date
@@ -186,10 +220,18 @@ end
     end
   end
 
-  
   def calculate_duration_days
     return unless start_date && end_date
     self.duration_days = (end_date.to_date - start_date.to_date).to_i + 1
+  end
+  
+  # def calculate_due_date
+  #   self.due_date = end_date if end_date.present?
+  # end
+
+  
+  def update_overdue_status
+    self.is_overdue = overdue?
   end
   
   def reserve_inventory_and_equipment
@@ -202,67 +244,67 @@ end
     create_equipment_reservations
   end
 
-def create_equipment_reservations
-  # Get equipment that's actually available for this date range
- available_laptop_ids = Equipment
-  .laptops
-  .available
-  .where.not(id: OrderEquipmentAssignment
-    .joins(:order)
-    .where(orders: { order_status: 'confirmed' })
-    .where('orders.start_date <= ? AND orders.end_date >= ?', end_date, start_date)
-    .where(returned_at: nil)
-    .pluck(:equipment_id)
-  )
-  .limit(laptops_needed)
-  .pluck(:id)
+  def create_equipment_reservations
+    # Get equipment that's actually available for this date range
+    available_laptop_ids = Equipment
+      .laptops
+      .available
+      .where.not(id: OrderEquipmentAssignment
+        .joins(:order)
+        .where(orders: { order_status: 'confirmed' })
+        .where('orders.start_date <= ? AND orders.end_date >= ?', end_date, start_date)
+        .where(returned_at: nil)
+        .pluck(:equipment_id)
+      )
+      .limit(laptops_needed)
+      .pluck(:id)
 
-available_processor_ids = Equipment
-  .video_processors
-  .available
-  .where.not(id: OrderEquipmentAssignment
-    .joins(:order)
-    .where(orders: { order_status: 'confirmed' })
-    .where('orders.start_date <= ? AND orders.end_date >= ?', end_date, start_date)
-    .where(returned_at: nil)
-    .pluck(:equipment_id)
-  )
-  .limit(video_processors_needed)
-  .pluck(:id)
+    available_processor_ids = Equipment
+      .video_processors
+      .available
+      .where.not(id: OrderEquipmentAssignment
+        .joins(:order)
+        .where(orders: { order_status: 'confirmed' })
+        .where('orders.start_date <= ? AND orders.end_date >= ?', end_date, start_date)
+        .where(returned_at: nil)
+        .pluck(:equipment_id)
+      )
+      .limit(video_processors_needed)
+      .pluck(:id)
 
-  
-  # Create assignments for available laptops
-  available_laptop_ids.each do |laptop_id|
-    order_equipment_assignments.create!(
-      equipment_id: laptop_id,
-      assigned_at: Time.current,
-      assignment_status: 'assigned'
-    )
-    # Update equipment status
-    Equipment.find(laptop_id).update!(status: 'assigned')
+    
+    # Create assignments for available laptops
+    available_laptop_ids.each do |laptop_id|
+      order_equipment_assignments.create!(
+        equipment_id: laptop_id,
+        assigned_at: Time.current,
+        assignment_status: 'assigned'
+      )
+      # Update equipment status
+      Equipment.find(laptop_id).update!(status: 'assigned')
+    end
+    
+    # Create assignments for available processors
+    available_processor_ids.each do |processor_id|
+      order_equipment_assignments.create!(
+        equipment_id: processor_id,
+        assigned_at: Time.current,
+        assignment_status: 'assigned'
+      )
+      # Update equipment status
+      Equipment.find(processor_id).update!(status: 'assigned')
+    end
+    
+    Rails.logger.info "Order #{order_id}: Reserved #{available_laptop_ids.count} laptops and #{available_processor_ids.count} processors for dates #{start_date} to #{end_date}"
+    
+    # Check if we got enough equipment
+    if available_laptop_ids.count < laptops_needed || available_processor_ids.count < video_processors_needed
+      Rails.logger.warn "Order #{order_id}: Could not reserve enough equipment. Needed: #{laptops_needed} laptops, #{video_processors_needed} processors. Got: #{available_laptop_ids.count} laptops, #{available_processor_ids.count} processors"
+    end
+  rescue => e
+    Rails.logger.error "Failed to create equipment reservations for order #{order_id}: #{e.message}"
+    raise e # Re-raise to rollback transaction
   end
-  
-  # Create assignments for available processors
-  available_processor_ids.each do |processor_id|
-    order_equipment_assignments.create!(
-      equipment_id: processor_id,
-      assigned_at: Time.current,
-      assignment_status: 'assigned'
-    )
-    # Update equipment status
-    Equipment.find(processor_id).update!(status: 'assigned')
-  end
-  
-  Rails.logger.info "Order #{order_id}: Reserved #{available_laptop_ids.count} laptops and #{available_processor_ids.count} processors for dates #{start_date} to #{end_date}"
-  
-  # Check if we got enough equipment
-  if available_laptop_ids.count < laptops_needed || available_processor_ids.count < video_processors_needed
-    Rails.logger.warn "Order #{order_id}: Could not reserve enough equipment. Needed: #{laptops_needed} laptops, #{video_processors_needed} processors. Got: #{available_laptop_ids.count} laptops, #{available_processor_ids.count} processors"
-  end
-rescue => e
-  Rails.logger.error "Failed to create equipment reservations for order #{order_id}: #{e.message}"
-  raise e # Re-raise to rollback transaction
-end
   
   def handle_status_changes
     if saved_change_to_order_status?

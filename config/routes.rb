@@ -1,13 +1,15 @@
 Rails.application.routes.draw do
+      
   namespace :api do
     namespace :v1 do
+      
       # Authentication routes
       post 'auth/login', to: 'authentication#login'
       post 'auth/logout', to: 'authentication#logout'
       post 'auth/refresh', to: 'authentication#refresh'
       get 'auth/me', to: 'authentication#me'
-       get 'equipment/availability_for_dates', to: 'equipment#availability_for_dates'
-        patch 'auth/change_password', to: 'authentication#change_password'
+      get 'equipment/availability_for_dates', to: 'equipment#availability_for_dates'
+      patch 'auth/change_password', to: 'authentication#change_password'
       # User management
       resources :users, only: [:index, :show, :create, :update, :destroy] do
         member do
@@ -34,7 +36,33 @@ Rails.application.routes.draw do
         end
       end
 
+      resources :monthly_targets do
+        collection do
+          get :current_month
+        end
+      end
       
+      # Recurring Expenses
+      resources :recurring_expenses do
+        member do
+          post :generate_expenses
+        end
+        collection do
+          post :generate_all_for_month
+        end
+      end
+      
+      # Enhanced Expenses
+      resources :expenses do
+        member do
+          patch :approve
+          patch :reject
+        end
+        collection do
+          get :summary
+          get :pending_approval
+        end
+      end
       # Data records (legacy - keeping for compatibility)
       resources :data_records do
         member do
@@ -101,18 +129,17 @@ Rails.application.routes.draw do
         end
       end
       
-      # Expenses
-      resources :expenses do
-        collection do
-          get :summary
-        end
-      end
+
       
-      # Finance & Reporting
-      namespace :finance do
+          namespace :finance do
         get :overview
         get :monthly_comparison
         get :revenue_breakdown
+        get :dashboard_summary
+        post :set_monthly_target
+        get :profit_sharing_settings
+        patch :profit_sharing_settings
+        get :export_financial_report
       end
     end
   end
