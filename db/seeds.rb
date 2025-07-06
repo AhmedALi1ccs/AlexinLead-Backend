@@ -50,3 +50,6 @@ puts "Created users:"
 puts "- Admin: admin@example.com / password123"
 puts "- User: user@example.com / password123"
 puts "Seed data created successfully!"
+
+# Load financial data
+load Rails.root.join('db', 'seeds', 'financial_data.rb')

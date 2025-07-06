@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2025_07_05_161919) do
+ActiveRecord::Schema[7.0].define(version: 2025_07_05_222840) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -123,12 +123,42 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_05_161919) do
     t.bigint "user_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "recurring_expense_id"
+    t.string "contractor_type", limit: 20
+    t.decimal "hours_worked", precision: 5, scale: 2
+    t.decimal "hourly_rate", precision: 8, scale: 2
+    t.string "status", limit: 20, default: "approved", null: false
+    t.bigint "approved_by_id"
+    t.datetime "approved_at"
+    t.index ["approved_by_id"], name: "index_expenses_on_approved_by_id"
+    t.index ["contractor_type"], name: "index_expenses_on_contractor_type"
     t.index ["expense_date"], name: "index_expenses_on_expense_date"
     t.index ["expense_type"], name: "index_expenses_on_expense_type"
     t.index ["order_id"], name: "index_expenses_on_order_id"
+    t.index ["recurring_expense_id"], name: "index_expenses_on_recurring_expense_id"
+    t.index ["status"], name: "index_expenses_on_status"
     t.index ["user_id"], name: "index_expenses_on_user_id"
+    t.check_constraint "(contractor_type::text = ANY (ARRAY['salary'::character varying, 'hourly'::character varying]::text[])) OR contractor_type IS NULL", name: "contractor_type_check"
     t.check_constraint "amount > 0::numeric", name: "positive_amount_check"
-    t.check_constraint "expense_type::text = ANY (ARRAY['wages'::character varying::text, 'transportation'::character varying::text, 'additions'::character varying::text])", name: "expense_type_check"
+    t.check_constraint "contractor_type::text = 'hourly'::text AND hours_worked IS NOT NULL AND hourly_rate IS NOT NULL OR contractor_type::text <> 'hourly'::text OR contractor_type IS NULL", name: "hourly_contractor_fields_check"
+    t.check_constraint "expense_type::text = ANY (ARRAY['labor'::character varying, 'transportation'::character varying, 'lunch'::character varying, 'others'::character varying]::text[])", name: "expense_type_check"
+    t.check_constraint "hourly_rate IS NULL OR hourly_rate > 0::numeric", name: "positive_hourly_rate_check"
+    t.check_constraint "hours_worked IS NULL OR hours_worked > 0::numeric", name: "positive_hours_check"
+    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying, 'approved'::character varying, 'rejected'::character varying]::text[])", name: "expense_status_check"
+  end
+
+  create_table "financial_settings", force: :cascade do |t|
+    t.decimal "partner_1_percentage", precision: 5, scale: 2, default: "33.33", null: false
+    t.decimal "partner_2_percentage", precision: 5, scale: 2, default: "33.33", null: false
+    t.decimal "company_saving_percentage", precision: 5, scale: 2, default: "33.34", null: false
+    t.string "partner_1_name", limit: 100, default: "Partner 1", null: false
+    t.string "partner_2_name", limit: 100, default: "Partner 2", null: false
+    t.boolean "is_active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["is_active"], name: "index_financial_settings_on_is_active"
+    t.check_constraint "(partner_1_percentage + partner_2_percentage + company_saving_percentage) = 100::numeric", name: "profit_sharing_percentage_check"
+    t.check_constraint "partner_1_percentage > 0::numeric AND partner_2_percentage > 0::numeric AND company_saving_percentage > 0::numeric", name: "positive_percentages_check"
   end
 
   create_table "items", force: :cascade do |t|
@@ -150,6 +180,24 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_05_161919) do
     t.index ["status"], name: "index_items_on_status"
     t.index ["user_id"], name: "index_items_on_user_id"
     t.check_constraint "status::text = ANY (ARRAY['active'::character varying::text, 'disposed'::character varying::text, 'maintenance'::character varying::text, 'reserved'::character varying::text])", name: "items_status_check"
+  end
+
+  create_table "monthly_targets", force: :cascade do |t|
+    t.integer "month", null: false
+    t.integer "year", null: false
+    t.decimal "gross_earnings_target", precision: 12, scale: 2, null: false
+    t.decimal "estimated_fixed_expenses", precision: 10, scale: 2, default: "0.0", null: false
+    t.decimal "estimated_variable_expenses", precision: 10, scale: 2, default: "0.0", null: false
+    t.text "notes"
+    t.bigint "created_by_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by_id"], name: "index_monthly_targets_on_created_by_id"
+    t.index ["year", "month"], name: "index_monthly_targets_on_year_and_month", unique: true
+    t.check_constraint "estimated_fixed_expenses >= 0::numeric AND estimated_variable_expenses >= 0::numeric", name: "non_negative_expenses_check"
+    t.check_constraint "gross_earnings_target > 0::numeric", name: "positive_target_check"
+    t.check_constraint "month >= 1 AND month <= 12", name: "valid_month_check"
+    t.check_constraint "year >= 2020 AND year <= 2100", name: "valid_year_check"
   end
 
   create_table "order_equipment_assignments", force: :cascade do |t|
@@ -207,17 +255,53 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_05_161919) do
     t.integer "dimensions_rows"
     t.integer "dimensions_columns"
     t.decimal "payed", precision: 10, scale: 2, default: "0.0", null: false
+    t.date "due_date"
+    t.string "invoice_number", limit: 100
+    t.string "payment_terms", limit: 50, default: "net_30"
+    t.datetime "invoice_sent_at"
+    t.datetime "last_reminder_sent_at"
+    t.boolean "is_overdue", default: false, null: false
     t.index ["disassemble_assignee_id"], name: "index_orders_on_disassemble_assignee_id"
+    t.index ["due_date"], name: "index_orders_on_due_date"
     t.index ["installing_assignee_id"], name: "index_orders_on_installing_assignee_id"
+    t.index ["invoice_number"], name: "index_orders_on_invoice_number", unique: true
+    t.index ["is_overdue"], name: "index_orders_on_is_overdue"
     t.index ["order_id"], name: "index_orders_on_order_id", unique: true
     t.index ["order_status"], name: "index_orders_on_order_status"
+    t.index ["payment_status", "due_date"], name: "index_orders_on_payment_status_and_due_date"
     t.index ["payment_status"], name: "index_orders_on_payment_status"
+    t.index ["payment_terms"], name: "index_orders_on_payment_terms"
     t.index ["start_date", "end_date"], name: "index_orders_on_start_date_and_end_date"
     t.index ["third_party_provider_id"], name: "index_orders_on_third_party_provider_id"
     t.index ["user_id"], name: "index_orders_on_user_id"
+    t.check_constraint "due_date IS NULL OR due_date >= start_date", name: "valid_due_date_check"
     t.check_constraint "laptops_needed > 0 AND video_processors_needed > 0", name: "orders_positive_equipment_counts_check"
     t.check_constraint "order_status::text = ANY (ARRAY['confirmed'::character varying, 'cancelled'::character varying]::text[])", name: "orders_status_check"
     t.check_constraint "payment_status::text = ANY (ARRAY['received'::character varying, 'not_received'::character varying, 'partial'::character varying]::text[])", name: "orders_payment_status_check"
+    t.check_constraint "payment_terms::text = ANY (ARRAY['net_15'::character varying, 'net_30'::character varying, 'net_45'::character varying, 'net_60'::character varying, 'due_on_receipt'::character varying, 'advance_payment'::character varying]::text[])", name: "valid_payment_terms_check"
+  end
+
+  create_table "recurring_expenses", force: :cascade do |t|
+    t.string "name", limit: 255, null: false
+    t.string "expense_type", limit: 50, null: false
+    t.decimal "amount", precision: 10, scale: 2, null: false
+    t.string "frequency", limit: 20, null: false
+    t.date "start_date", null: false
+    t.date "end_date"
+    t.boolean "is_active", default: true, null: false
+    t.text "description"
+    t.bigint "created_by_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by_id"], name: "index_recurring_expenses_on_created_by_id"
+    t.index ["expense_type"], name: "index_recurring_expenses_on_expense_type"
+    t.index ["frequency"], name: "index_recurring_expenses_on_frequency"
+    t.index ["is_active"], name: "index_recurring_expenses_on_is_active"
+    t.index ["start_date"], name: "index_recurring_expenses_on_start_date"
+    t.check_constraint "amount > 0::numeric", name: "positive_recurring_amount_check"
+    t.check_constraint "end_date IS NULL OR end_date >= start_date", name: "valid_date_range_check"
+    t.check_constraint "expense_type::text = ANY (ARRAY['labor'::character varying, 'transportation'::character varying, 'lunch'::character varying, 'others'::character varying]::text[])", name: "recurring_expense_type_check"
+    t.check_constraint "frequency::text = ANY (ARRAY['monthly'::character varying, 'weekly'::character varying, 'daily'::character varying]::text[])", name: "valid_frequency_check"
   end
 
   create_table "screen_inventory", force: :cascade do |t|
@@ -282,8 +366,11 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_05_161919) do
   add_foreign_key "data_permissions", "users", on_delete: :cascade
   add_foreign_key "data_records", "users", on_delete: :cascade
   add_foreign_key "expenses", "orders"
+  add_foreign_key "expenses", "recurring_expenses"
   add_foreign_key "expenses", "users"
+  add_foreign_key "expenses", "users", column: "approved_by_id"
   add_foreign_key "items", "users", on_delete: :cascade
+  add_foreign_key "monthly_targets", "users", column: "created_by_id"
   add_foreign_key "order_equipment_assignments", "equipment"
   add_foreign_key "order_equipment_assignments", "orders"
   add_foreign_key "order_screen_requirements", "orders"
@@ -292,6 +379,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_05_161919) do
   add_foreign_key "orders", "employees", column: "disassemble_assignee_id", on_delete: :nullify
   add_foreign_key "orders", "employees", column: "installing_assignee_id", on_delete: :nullify
   add_foreign_key "orders", "users"
+  add_foreign_key "recurring_expenses", "users", column: "created_by_id"
   add_foreign_key "screen_maintenances", "screen_inventory"
   add_foreign_key "user_sessions", "users", on_delete: :cascade
 end
