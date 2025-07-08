@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2025_07_05_222840) do
+ActiveRecord::Schema[7.0].define(version: 2025_07_07_223915) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -225,6 +225,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_05_222840) do
     t.datetime "updated_at", null: false
     t.integer "dimensions_rows"
     t.integer "dimensions_columns"
+    t.boolean "active", default: true, null: false
     t.index ["order_id", "screen_inventory_id"], name: "unique_order_screen", unique: true
     t.index ["order_id"], name: "index_order_screen_requirements_on_order_id"
     t.index ["screen_inventory_id"], name: "index_order_screen_requirements_on_screen_inventory_id"
@@ -274,7 +275,6 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_05_222840) do
     t.index ["start_date", "end_date"], name: "index_orders_on_start_date_and_end_date"
     t.index ["third_party_provider_id"], name: "index_orders_on_third_party_provider_id"
     t.index ["user_id"], name: "index_orders_on_user_id"
-    t.check_constraint "due_date IS NULL OR due_date >= start_date", name: "valid_due_date_check"
     t.check_constraint "laptops_needed > 0 AND video_processors_needed > 0", name: "orders_positive_equipment_counts_check"
     t.check_constraint "order_status::text = ANY (ARRAY['confirmed'::character varying, 'cancelled'::character varying]::text[])", name: "orders_status_check"
     t.check_constraint "payment_status::text = ANY (ARRAY['received'::character varying, 'not_received'::character varying, 'partial'::character varying]::text[])", name: "orders_payment_status_check"
