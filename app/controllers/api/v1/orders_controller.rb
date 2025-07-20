@@ -167,73 +167,87 @@ class Api::V1::OrdersController < ApplicationController
   end
   
   def update
-    ActiveRecord::Base.transaction do
-      if @order.update(order_params)
-        if params[:screen_requirements].present?
-
-          params[:screen_requirements].each do |req|
-            @order.order_screen_requirements.build(
-              screen_inventory_id: req[:screen_inventory_id],
-              sqm_required: req[:sqm_required],
-              dimensions_rows: req[:dimensions_rows],
-              dimensions_columns: req[:dimensions_columns]
-            )
-          end
-          
-          # Update legacy dimensions from first screen requirement
-          first_screen = params[:screen_requirements].first
-          @order.dimensions_rows = first_screen[:dimensions_rows] || 1
-          @order.dimensions_columns = first_screen[:dimensions_columns] || 1
-          
-          # Save to create the screen requirements
-          @order.save!
-          
-          # Reserve the new screen requirements (same as create method)
-          @order.order_screen_requirements.each do |req|
-            req.update!(reserved_at: Time.current)
-          end
-          
-          Rails.logger.debug "🔧 Screen requirements created and reserved: #{@order.order_screen_requirements.count}"
+  ActiveRecord::Base.transaction do
+    Rails.logger.debug "🔧 Starting update for order #{@order.order_id}"
+    Rails.logger.debug "🔧 RAW PARAMS: #{params.inspect}"
+    Rails.logger.debug "🔧 Screen requirements before: #{@order.order_screen_requirements.count}"
+    
+    # STEP 1: Unreserve all resources (equipment + screens)
+    @order.unreserve_resources!
+    Rails.logger.debug "🔧 Resources unreserved"
+    
+    # STEP 2: Update order attributes
+    if @order.update(order_params)
+      Rails.logger.debug "🔧 Order attributes updated"
+      
+      # STEP 3: Create new screen requirements from scratch (like create method)
+      if params[:screen_requirements].present?
+        Rails.logger.debug "🔧 Creating #{params[:screen_requirements].length} new screen requirements"
+        
+        # Build screen requirements (same as create method)
+        params[:screen_requirements].each do |req|
+          @order.order_screen_requirements.build(
+            screen_inventory_id: req[:screen_inventory_id],
+            sqm_required: req[:sqm_required],
+            dimensions_rows: req[:dimensions_rows],
+            dimensions_columns: req[:dimensions_columns]
+          )
         end
         
-        # STEP 4: Assign equipment (same as create method)
-        begin
-          assign_equipment(@order)
-          Rails.logger.debug "🔧 Equipment assigned successfully"
-          
-          render json: {
-            message: 'Order updated successfully',
-            order: serialize_order(@order.reload, include_details: true)
-          }
-        rescue => e
-          Rails.logger.error "❌ Equipment assignment failed: #{e.message}"
-          render json: {
-            error: 'Could not assign equipment',
-            details: e.message
-          }, status: :unprocessable_entity
+        # Update legacy dimensions from first screen requirement
+        first_screen = params[:screen_requirements].first
+        @order.dimensions_rows = first_screen[:dimensions_rows] || 1
+        @order.dimensions_columns = first_screen[:dimensions_columns] || 1
+        
+        # Save to create the screen requirements
+        @order.save!
+        
+        # Reserve the new screen requirements (same as create method)
+        @order.order_screen_requirements.each do |req|
+          req.update!(reserved_at: Time.current)
         end
-      else
-        Rails.logger.error "❌ Order update failed: #{@order.errors.full_messages}"
+        
+        Rails.logger.debug "🔧 Screen requirements created and reserved: #{@order.order_screen_requirements.count}"
+      end
+      
+      # STEP 4: Assign equipment (same as create method)
+      begin
+        assign_equipment(@order)
+        Rails.logger.debug "🔧 Equipment assigned successfully"
+        
         render json: {
-          error: 'Failed to update order',
-          errors: @order.errors.full_messages
+          message: 'Order updated successfully',
+          order: serialize_order(@order.reload, include_details: true)
+        }
+      rescue => e
+        Rails.logger.error "❌ Equipment assignment failed: #{e.message}"
+        render json: {
+          error: 'Could not assign equipment',
+          details: e.message
         }, status: :unprocessable_entity
       end
+    else
+      Rails.logger.error "❌ Order update failed: #{@order.errors.full_messages}"
+      render json: {
+        error: 'Failed to update order',
+        errors: @order.errors.full_messages
+      }, status: :unprocessable_entity
     end
-  rescue ActiveRecord::RecordInvalid => e
-    Rails.logger.error "❌ Record invalid: #{e.message}"
-    render json: {
-      error: 'Failed to update order',
-      errors: [e.message]
-    }, status: :unprocessable_entity
-  rescue => e
-    Rails.logger.error "❌ Unexpected error: #{e.message}"
-    Rails.logger.error e.backtrace.join("\n")
-    render json: {
-      error: 'An unexpected error occurred',
-      errors: [e.message]
-    }, status: :internal_server_error
   end
+rescue ActiveRecord::RecordInvalid => e
+  Rails.logger.error "❌ Record invalid: #{e.message}"
+  render json: {
+    error: 'Failed to update order',
+    errors: [e.message]
+  }, status: :unprocessable_entity
+rescue => e
+  Rails.logger.error "❌ Unexpected error: #{e.message}"
+  Rails.logger.error e.backtrace.join("\n")
+  render json: {
+    error: 'An unexpected error occurred',
+    errors: [e.message]
+  }, status: :internal_server_error
+end
   def update_payment
     amount = params.require(:amount).to_f
     payment_status = params.require(:payment_status)
