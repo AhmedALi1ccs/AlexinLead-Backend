@@ -3,37 +3,37 @@ class Api::V1::ScreenInventoryController < ApplicationController
   before_action :authorize_admin!, except: [:index, :show, :availability, :availability_by_dates]
   
   def index
-  start_date = Date.parse(params[:start_date]) rescue Date.current
-  end_date   = Date.parse(params[:end_date])   rescue Date.current + 7.days
+    start_date = Date.parse(params[:start_date]) rescue Date.current
+    end_date   = Date.parse(params[:end_date])   rescue Date.current + 7.days
 
-  screens = ScreenInventory.active.order(:screen_type)
+    screens = ScreenInventory.active.order(:screen_type)
 
-  availability = screens.map do |screen|
-    reserved = screen.order_screen_requirements
-                   .joins(:order)
-                   .where(orders: { order_status: %w[confirmed in_progress] })
-                   .where('orders.start_date <= ? AND orders.end_date >= ?', end_date, start_date)
-                   .sum(:sqm_required)
-  maint    = screen.maintenance_sqm_between(start_date, end_date)
-  avail    = [screen.total_sqm_owned - reserved - maint, 0].max
+    availability = screens.map do |screen|
+      reserved = screen.order_screen_requirements
+                    .joins(:order)
+                    .where(orders: { order_status: %w[confirmed in_progress] })
+                    .where('orders.start_date <= ? AND orders.end_date >= ?', end_date, start_date)
+                    .sum(:sqm_required)
+    maint    = screen.maintenance_sqm_between(start_date, end_date)
+    avail    = [screen.total_sqm_owned - reserved - maint, 0].max
 
-    {
-      id:               screen.id,
-      screen_type:      screen.screen_type,
-      pixel_pitch:      screen.pixel_pitch,
-      total_sqm_owned:  screen.total_sqm_owned,
-      reserved_sqm:     reserved,
-      maintenance_sqm:  maint,
-      available_sqm:    avail,
-      is_available:     (avail > 0)
+      {
+        id:               screen.id,
+        screen_type:      screen.screen_type,
+        pixel_pitch:      screen.pixel_pitch,
+        total_sqm_owned:  screen.total_sqm_owned,
+        reserved_sqm:     reserved,
+        maintenance_sqm:  maint,
+        available_sqm:    avail,
+        is_available:     (avail > 0)
+      }
+    end
+
+    render json: {
+      availability: availability,
+      date_range:   { start_date: start_date, end_date: end_date }
     }
   end
-
-  render json: {
-    availability: availability,
-    date_range:   { start_date: start_date, end_date: end_date }
-  }
-end
 
 
   
@@ -80,22 +80,29 @@ end
   end
   
   
-   def availability
+  def availability
     start_date   = Date.parse(params[:start_date]) rescue Date.current
     end_date     = Date.parse(params[:end_date])   rescue Date.current + 7.days
     required_sqm = params[:required_sqm].to_f
     pixel_pitch  = params[:pixel_pitch]
+    exclude_order_id = params[:exclude_order_id]
 
     screens = ScreenInventory.active
     screens = screens.by_pixel_pitch(pixel_pitch) if pixel_pitch.present?
 
     availability_data = screens.map do |screen|
-      # 1) reserved by orders
-      reserved_sqm = screen.order_screen_requirements
-                         .joins(:order)
-                         .where(orders: { order_status: %w[confirmed in_progress] })
-                         .where('orders.start_date <= ? AND orders.end_date >= ?', end_date, start_date)
-                         .sum(:sqm_required)
+      # 1) Build the base query for reserved by orders
+      reserved_query = screen.order_screen_requirements
+                            .joins(:order)
+                            .where(orders: { order_status: %w[confirmed in_progress] })
+                            .where('orders.start_date <= ? AND orders.end_date >= ?', end_date, start_date)
+
+      # Exclude screen requirements from the specified order if exclude_order_id is provided
+      if exclude_order_id.present?
+        reserved_query = reserved_query.where.not(orders: { id: exclude_order_id })
+      end
+
+      reserved_sqm = reserved_query.sum(:sqm_required)
 
       # 2) under maintenance
       maint_sqm = screen.maintenance_sqm_between(start_date, end_date)
@@ -134,7 +141,6 @@ end
                          .sum(:sqm_required)
 
       maint_sqm = screen.maintenance_sqm_between(start_date, end_date)
-      avail_sqm = screen.total_sqm_owned - reserved_sqm - maint_sqm
 
       {
         id:                     screen.id,
@@ -163,36 +169,36 @@ end
   end
   
   def screen_inventory_params
-  params.require(:screen_inventory).permit(
-    :screen_type,
-    :pixel_pitch,
-    :total_sqm_owned,
-    :description,
-    :is_active
-  )
-end
-
-  
-  def serialize_screen_inventory(screen, include_details: false)
-  data = {
-    id:               screen.id,
-    screen_type:      screen.screen_type,
-    pixel_pitch:      screen.pixel_pitch,
-    total_sqm_owned:  screen.total_sqm_owned,
-    is_active:        screen.is_active
-  }
-
-  if include_details
-    data.merge!(
-      description:   screen.description,
-      total_orders:  screen.orders.count,
-      active_orders: screen.orders.active.count,
-      created_at:    screen.created_at
+    params.require(:screen_inventory).permit(
+      :screen_type,
+      :pixel_pitch,
+      :total_sqm_owned,
+      :description,
+      :is_active
     )
   end
 
-  data
-end
+  
+  def serialize_screen_inventory(screen, include_details: false)
+    data = {
+      id:               screen.id,
+      screen_type:      screen.screen_type,
+      pixel_pitch:      screen.pixel_pitch,
+      total_sqm_owned:  screen.total_sqm_owned,
+      is_active:        screen.is_active
+    }
+
+    if include_details
+      data.merge!(
+        description:   screen.description,
+        total_orders:  screen.orders.count,
+        active_orders: screen.orders.active.count,
+        created_at:    screen.created_at
+      )
+    end
+
+    data
+  end
 
 
   def current_reservations_for_screen(screen)

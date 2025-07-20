@@ -168,16 +168,11 @@ class Api::V1::OrdersController < ApplicationController
   
   def update
     ActiveRecord::Base.transaction do
-      # Update basic order attributes
       if @order.update(order_params)
-        # Update screen requirements if provided
         if params[:screen_requirements].present?
-          # Remove existing screen requirements
-          @order.order_screen_requirements.destroy_all
-          
-          # Create new screen requirements
+
           params[:screen_requirements].each do |req|
-            @order.order_screen_requirements.create!(
+            @order.order_screen_requirements.build(
               screen_inventory_id: req[:screen_inventory_id],
               sqm_required: req[:sqm_required],
               dimensions_rows: req[:dimensions_rows],
@@ -185,32 +180,54 @@ class Api::V1::OrdersController < ApplicationController
             )
           end
           
-          # Update legacy dimensions fields from first screen requirement
+          # Update legacy dimensions from first screen requirement
           first_screen = params[:screen_requirements].first
-          @order.update!(
-            dimensions_rows: first_screen[:dimensions_rows] || 1,
-            dimensions_columns: first_screen[:dimensions_columns] || 1
-          )
+          @order.dimensions_rows = first_screen[:dimensions_rows] || 1
+          @order.dimensions_columns = first_screen[:dimensions_columns] || 1
+          
+          # Save to create the screen requirements
+          @order.save!
+          
+          # Reserve the new screen requirements (same as create method)
+          @order.order_screen_requirements.each do |req|
+            req.update!(reserved_at: Time.current)
+          end
+          
+          Rails.logger.debug "🔧 Screen requirements created and reserved: #{@order.order_screen_requirements.count}"
         end
         
-        render json: {
-          message: 'Order updated successfully',
-          order: serialize_order(@order, include_details: true)
-        }
+        # STEP 4: Assign equipment (same as create method)
+        begin
+          assign_equipment(@order)
+          Rails.logger.debug "🔧 Equipment assigned successfully"
+          
+          render json: {
+            message: 'Order updated successfully',
+            order: serialize_order(@order.reload, include_details: true)
+          }
+        rescue => e
+          Rails.logger.error "❌ Equipment assignment failed: #{e.message}"
+          render json: {
+            error: 'Could not assign equipment',
+            details: e.message
+          }, status: :unprocessable_entity
+        end
       else
+        Rails.logger.error "❌ Order update failed: #{@order.errors.full_messages}"
         render json: {
           error: 'Failed to update order',
           errors: @order.errors.full_messages
         }, status: :unprocessable_entity
       end
-  end
+    end
   rescue ActiveRecord::RecordInvalid => e
+    Rails.logger.error "❌ Record invalid: #{e.message}"
     render json: {
       error: 'Failed to update order',
       errors: [e.message]
     }, status: :unprocessable_entity
   rescue => e
-    Rails.logger.error "Order update failed: #{e.message}"
+    Rails.logger.error "❌ Unexpected error: #{e.message}"
     Rails.logger.error e.backtrace.join("\n")
     render json: {
       error: 'An unexpected error occurred',
@@ -402,6 +419,7 @@ def assign_equipment_type(order, type, quantity)
     .joins(:order)
     .where('orders.start_date <= ? AND orders.end_date >= ?', order.end_date, order.start_date)
     .where(orders: { order_status: ['confirmed', 'in_progress'] })
+    .where.not(orders: { id: order.id })
     .where(returned_at: nil)
     .pluck(:equipment_id)
 
