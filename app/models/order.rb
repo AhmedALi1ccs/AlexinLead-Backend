@@ -54,6 +54,25 @@ class Order < ApplicationRecord
   def outstanding_amount
     total_amount - payed
   end
+
+def unreserve_resources!
+  transaction do
+    # Unreserve screen requirements (set reserved_at to nil)
+    order_screen_requirements.destroy_all
+
+    # Return equipment and mark them as available (same as cancel! method)
+    equipment.each do |eq| 
+      eq.return_from_order! if eq.status == 'assigned' 
+    end
+    
+    # Destroy all equipment assignments
+    order_equipment_assignments.destroy_all
+  end
+rescue => e
+  Rails.logger.error "Failed to unreserve resources for order #{order_id}: #{e.message}"
+  raise e
+end
+
   
   def days_overdue
     return 0 unless due_date && due_date < Date.current && payment_status != 'received'

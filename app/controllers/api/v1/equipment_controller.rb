@@ -94,13 +94,21 @@ class Api::V1::EquipmentController < ApplicationController
 def availability_for_dates
   start_date = Date.parse(params[:start_date]) rescue Date.current
   end_date = Date.parse(params[:end_date]) rescue Date.current + 7.days
+  exclude_order_id = params[:exclude_order_id]
 
-  assigned_equipment_ids = OrderEquipmentAssignment
+  # Build the base query for assigned equipment
+  assigned_equipment_query = OrderEquipmentAssignment
     .joins(:order)
     .where(orders: { order_status: 'confirmed' })
     .where('orders.start_date <= ? AND orders.end_date >= ?', end_date, start_date)
     .where('order_equipment_assignments.returned_at IS NULL OR order_equipment_assignments.returned_at >= ?', start_date)
-    .pluck(:equipment_id)
+
+  # Exclude equipment from the specified order if exclude_order_id is provided
+  if exclude_order_id.present?
+    assigned_equipment_query = assigned_equipment_query.where.not(orders: { id: exclude_order_id })
+  end
+
+  assigned_equipment_ids = assigned_equipment_query.pluck(:equipment_id)
 
   availability = {
     laptops: calculate_type_availability('laptop', assigned_equipment_ids),
