@@ -88,6 +88,8 @@ Rails.application.routes.draw do
         member do
           patch :cancel
           patch :pay
+          patch :update_payment
+
         end
         collection do
           get :location_suggestions
