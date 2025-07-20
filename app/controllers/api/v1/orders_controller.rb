@@ -1,6 +1,6 @@
 class Api::V1::OrdersController < ApplicationController
-  before_action :set_order, only: [:show, :update, :destroy, :cancel,:pay]
-  before_action :check_edit_access, only: [:update, :destroy, :cancel,:pay]
+  before_action :set_order, only: [:show, :update, :destroy, :cancel,:pay,:update_payment]
+  before_action :check_edit_access, only: [:update, :destroy, :cancel,:pay,:update_payment]
   
   def index
   if current_user.admin? || current_user.role == 'viewer'
@@ -203,7 +203,7 @@ class Api::V1::OrdersController < ApplicationController
           errors: @order.errors.full_messages
         }, status: :unprocessable_entity
       end
-    end
+  end
   rescue ActiveRecord::RecordInvalid => e
     render json: {
       error: 'Failed to update order',
@@ -212,6 +212,31 @@ class Api::V1::OrdersController < ApplicationController
   rescue => e
     Rails.logger.error "Order update failed: #{e.message}"
     Rails.logger.error e.backtrace.join("\n")
+    render json: {
+      error: 'An unexpected error occurred',
+      errors: [e.message]
+    }, status: :internal_server_error
+  end
+  def update_payment
+    amount = params.require(:amount).to_f
+    payment_status = params.require(:payment_status)
+
+    ActiveRecord::Base.transaction do
+      @order.increment!(:payed, amount)
+      @order.update!(payment_status: payment_status)
+    end
+
+    render json: {
+      message: 'Payment updated successfully',
+      order: serialize_order(@order.reload, include_details: true)
+    }
+  rescue ActiveRecord::RecordInvalid => e
+    render json: {
+      error: 'Failed to update payment',
+      errors: [e.message]
+    }, status: :unprocessable_entity
+  rescue => e
+    Rails.logger.error "Payment update failed: #{e.message}"
     render json: {
       error: 'An unexpected error occurred',
       errors: [e.message]
